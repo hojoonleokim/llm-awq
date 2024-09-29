@@ -181,9 +181,7 @@ class WQLinear(nn.Module):
         intweight = torch.cat(intweight, dim=1)
         # intweight = intweight.t().contiguous()
         intweight = intweight.to(dtype=torch.int32)
-        awq_linear.qweight = pack_intweight(
-            intweight.contiguous(), interleave=4, kstride=64
-        )
+        awq_linear.qweight = intweight
 
         zeros = zeros.to(dtype=torch.int32)
         scaled_zeros = torch.zeros_like(qscales)
