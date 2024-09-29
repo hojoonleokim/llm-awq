@@ -106,17 +106,7 @@ class WQLinear(nn.Module):
                 device=dev,
             ),
         )
-        self.register_buffer(
-            "scales_bf",
-            torch.zeros(
-                (
-                    calculate_zeros_width(in_features, self.group_size) * pack_num,
-                    out_features,
-                ),
-                dtype=torch.float32,
-                device=dev,
-            ),
-        )
+
         self.register_buffer(
             "scales",
             torch.zeros(
@@ -139,17 +129,7 @@ class WQLinear(nn.Module):
                 device=dev,
             ),
         )        
-        self.register_buffer(
-            "zeros_bf",
-            torch.zeros(
-                (
-                    calculate_zeros_width(in_features, self.group_size) * pack_num,
-                    out_features,
-                ),
-                dtype=torch.float32,
-                device=dev,
-            ),
-        )  
+  
         if bias:
             self.register_buffer(
                 "bias", torch.zeros((out_features), dtype=torch.float16, device=dev)
@@ -175,8 +155,7 @@ class WQLinear(nn.Module):
         # need scales and zeros info for real quantization
         assert scales is not None and zeros is not None
 
-        awq_linear.scales_bf = scales
-        awq_linear.zeros_bf = zeros
+        awq_linear.scaled_zeros = zeros.contiguous().reshape([zeros.shape[0], zeros.shape[1], 1])
         print(scales.size()," ",zeros.size())
         
         scale_zeros = zeros * scales
@@ -216,7 +195,7 @@ class WQLinear(nn.Module):
         scaled_zeros[:, : scales.shape[1]] = -(
             qscales[:, : scales.shape[1]] * (zeros.to(torch.float32))
         )
-        awq_linear.scaled_zeros = scaled_zeros.contiguous().reshape([scaled_zeros.shape[0], scaled_zeros.shape[1], 1])
+
         awq_linear.scaled_zeros=awq_linear.scaled_zeros.to(dtype=torch.float32)
 
         return awq_linear
