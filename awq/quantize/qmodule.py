@@ -128,6 +128,40 @@ class WQLinear(nn.Module):
                 device=dev,
             ),
         )
+        self.register_buffer(
+            "zeros",
+            torch.zeros(
+                (
+                    calculate_zeros_width(in_features, self.group_size) * pack_num,
+                    out_features,
+                ),
+                dtype=torch.float32,
+                device=dev,
+            ),
+            
+        )
+        self.register_buffer(
+            "zeros_bf",
+            torch.zeros(
+                (
+                    calculate_zeros_width(in_features, self.group_size) * pack_num,
+                    out_features,
+                ),
+                dtype=torch.float32,
+                device=dev,
+            ),
+        )  
+        self.register_buffer(
+            "zeros_af",
+            torch.zeros(
+                (
+                    calculate_zeros_width(in_features, self.group_size) * pack_num,
+                    out_features,
+                ),
+                dtype=torch.float32,
+                device=dev,
+            ),
+        )        
 
         if bias:
             self.register_buffer(
