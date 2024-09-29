@@ -156,7 +156,7 @@ class WQLinear(nn.Module):
         assert scales is not None and zeros is not None
 
         awq_linear.scaled_zeros = zeros.contiguous().reshape([zeros.shape[0], zeros.shape[1], 1])
-        print(scales.size()," ",zeros.size())
+        #print(scales.size()," ",zeros.size())
         
         scale_zeros = zeros * scales
 
