@@ -79,8 +79,8 @@ class WQLinear(nn.Module):
     def __init__(self, w_bit, group_size, in_features, out_features, bias, dev):
         super().__init__()
 
-        if w_bit not in [4]:
-            raise NotImplementedError("Only 4-bit are supported for now.")
+        #if w_bit not in [4]:
+        #    raise NotImplementedError("Only 4-bit are supported for now.")
 
         self.in_features = in_features
         self.out_features = out_features
