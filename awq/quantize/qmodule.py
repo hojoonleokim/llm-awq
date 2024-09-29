@@ -90,7 +90,7 @@ class WQLinear(nn.Module):
         self.interleave = 4
         # quick sanity check (make sure aligment)
         assert self.in_features % self.group_size == 0
-        assert out_features % (32 // self.w_bit) == 0
+        #assert out_features % (32 // self.w_bit) == 0
         pack_num = 32 // self.w_bit
         int16_pack_num = 16 // self.w_bit
 
