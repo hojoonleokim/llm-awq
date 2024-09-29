@@ -107,7 +107,7 @@ class WQLinear(nn.Module):
             ),
         )
         self.register_buffer(
-            "scales",
+            "scales_bf",
             torch.zeros(
                 (
                     calculate_zeros_width(in_features, self.group_size) * pack_num,
