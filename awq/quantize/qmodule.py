@@ -99,7 +99,7 @@ class WQLinear(nn.Module):
             "qweight",
             torch.zeros(
                 (
-                    out_features // self.interleave,
+                    out_features,
                     in_features // int16_pack_num * self.interleave,
                 ),
                 dtype=torch.int32,
