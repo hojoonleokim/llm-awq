@@ -198,9 +198,8 @@ def build_model_and_enc(model_path):
                 ), "Need to use real quantization to dump quantized weights"
                 pseudo_quantize_model_weight(model, w_bit=args.w_bit, q_config=q_config)
                 if args.dump_fake:
-                    weight_tensor = model.layers[30].self_attn.v_proj.weight
-                    #torch.save(model.state_dict(), args.dump_quant)
-                    torch.save(weight_tensor, "v_proj_weight.pt")
+                    weight_tensor = model.state_dict()["model.layers.30.self_attn.v_proj.weight"]
+                    torch.save(weight_tensor, "layer30_v_proj_weight.pt")
             elif args.q_backend == "real":  # real quantization
                 real_quantize_model_weight(model, w_bit=args.w_bit, q_config=q_config)
                 if args.dump_quant:
