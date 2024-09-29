@@ -127,40 +127,6 @@ class WQLinear(nn.Module):
                 dtype=torch.float32,
                 device=dev,
             ),
-        )
-        self.register_buffer(
-            "zeros",
-            torch.zeros(
-                (
-                    calculate_zeros_width(in_features, self.group_size) * pack_num,
-                    out_features,
-                ),
-                dtype=torch.float32,
-                device=dev,
-            ),
-            
-        )
-        self.register_buffer(
-            "zeros_bf",
-            torch.zeros(
-                (
-                    calculate_zeros_width(in_features, self.group_size) * pack_num,
-                    out_features,
-                ),
-                dtype=torch.float32,
-                device=dev,
-            ),
-        )  
-        self.register_buffer(
-            "zeros_af",
-            torch.zeros(
-                (
-                    calculate_zeros_width(in_features, self.group_size) * pack_num,
-                    out_features,
-                ),
-                dtype=torch.float32,
-                device=dev,
-            ),
         )        
 
         if bias:
@@ -218,9 +184,7 @@ class WQLinear(nn.Module):
         intweight = intweight.to(dtype=torch.int32).reshape([intweight.shape[0], -1, group_size])
         awq_linear.qweight = intweight
 
-        awq_linear.zeros_bf = zeros
         zeros = zeros.to(dtype=torch.int32)
-        awq_linear.zeros_af = zeros
         scaled_zeros = torch.zeros_like(qscales)
         # scaled_zeros[:, :scales.shape[1]] = -(qscales[:, :scales.shape[1]] * (zeros.to(torch.float32) - 8.0)).to(torch.float16)
         scaled_zeros[:, : scales.shape[1]] = -(
@@ -228,7 +192,7 @@ class WQLinear(nn.Module):
         )
         awq_linear.scaled_zeros = scaled_zeros.contiguous().reshape([scaled_zeros.shape[0], scaled_zeros.shape[1], 1])
         awq_linear.scaled_zeros=awq_linear.scaled_zeros.to(dtype=torch.float32)
-        awq_linear.zeros = zeros
+
         return awq_linear
 
     @torch.no_grad()
