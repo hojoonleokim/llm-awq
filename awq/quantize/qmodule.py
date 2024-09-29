@@ -102,7 +102,7 @@ class WQLinear(nn.Module):
                     out_features // self.interleave,
                     in_features // int16_pack_num * self.interleave,
                 ),
-                dtype=torch.int16,
+                dtype=torch.int32,
                 device=dev,
             ),
         )
@@ -113,7 +113,7 @@ class WQLinear(nn.Module):
                     calculate_zeros_width(in_features, self.group_size) * pack_num,
                     out_features,
                 ),
-                dtype=torch.float16,
+                dtype=torch.float32,
                 device=dev,
             ),
         )
@@ -124,7 +124,7 @@ class WQLinear(nn.Module):
                     calculate_zeros_width(in_features, self.group_size) * pack_num,
                     out_features,
                 ),
-                dtype=torch.float16,
+                dtype=torch.float32,
                 device=dev,
             ),
         )
@@ -166,7 +166,7 @@ class WQLinear(nn.Module):
         )
         qscales[:, : scales.shape[1]] = scales
         # awq_linear.scales = scales.clone().half()
-        awq_linear.scales = qscales.contiguous()
+        awq_linear.scales = qscales.contiguous().reshape([qscales.shape[0], qscales.shape[1], 1])
         if linear.bias is not None:
             awq_linear.bias = linear.bias.clone().half()
 
@@ -180,9 +180,8 @@ class WQLinear(nn.Module):
             )
         intweight = torch.cat(intweight, dim=1)
         # intweight = intweight.t().contiguous()
-        intweight = intweight.to(dtype=torch.int32)
+        intweight = intweight.to(dtype=torch.int32).reshape([intweight.shape[0], -1, group_size])
         awq_linear.qweight = intweight
-
 
         awq_linear.zeros_bf = zeros
         zeros = zeros.to(dtype=torch.int32)
@@ -192,7 +191,7 @@ class WQLinear(nn.Module):
         scaled_zeros[:, : scales.shape[1]] = -(
             qscales[:, : scales.shape[1]] * (zeros.to(torch.float32))
         )
-        awq_linear.scaled_zeros = scaled_zeros.contiguous()
+        awq_linear.scaled_zeros = scaled_zeros.contiguous().reshape([scaled_zeros.shape[0], scaled_zeros.shape[1], 1])
         awq_linear.zeros = zeros
         return awq_linear
 
