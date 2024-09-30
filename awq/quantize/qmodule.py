@@ -79,8 +79,8 @@ class WQLinear(nn.Module):
     def __init__(self, w_bit, group_size, in_features, out_features, bias, dev):
         super().__init__()
 
-        if w_bit not in [4]:
-            raise NotImplementedError("Only 4-bit are supported for now.")
+        #if w_bit not in [4]:
+        #    raise NotImplementedError("Only 4-bit are supported for now.")
 
         self.in_features = in_features
         self.out_features = out_features
@@ -90,22 +90,23 @@ class WQLinear(nn.Module):
         self.interleave = 4
         # quick sanity check (make sure aligment)
         assert self.in_features % self.group_size == 0
-        assert out_features % (32 // self.w_bit) == 0
-        pack_num = 32 // self.w_bit
-        int16_pack_num = 16 // self.w_bit
+        #assert out_features % (32 // self.w_bit) == 0
+        pack_num = 32 // 4
+        int16_pack_num = 16 // 4
 
         assert out_features % (self.interleave) == 0
         self.register_buffer(
             "qweight",
             torch.zeros(
                 (
-                    out_features // self.interleave,
+                    out_features,
                     in_features // int16_pack_num * self.interleave,
                 ),
-                dtype=torch.int16,
+                dtype=torch.int32,
                 device=dev,
             ),
         )
+
         self.register_buffer(
             "scales",
             torch.zeros(
@@ -113,7 +114,7 @@ class WQLinear(nn.Module):
                     calculate_zeros_width(in_features, self.group_size) * pack_num,
                     out_features,
                 ),
-                dtype=torch.float16,
+                dtype=torch.float32,
                 device=dev,
             ),
         )
@@ -124,11 +125,11 @@ class WQLinear(nn.Module):
                     calculate_zeros_width(in_features, self.group_size) * pack_num,
                     out_features,
                 ),
-                dtype=torch.float16,
+                dtype=torch.float32,
                 device=dev,
             ),
-        )
-
+        )        
+  
         if bias:
             self.register_buffer(
                 "bias", torch.zeros((out_features), dtype=torch.float16, device=dev)
@@ -153,9 +154,13 @@ class WQLinear(nn.Module):
 
         # need scales and zeros info for real quantization
         assert scales is not None and zeros is not None
+
+        awq_linear.scaled_zeros = zeros.contiguous().reshape([zeros.shape[0], zeros.shape[1], 1])
+        #print(scales.size()," ",zeros.size())
+        
         scale_zeros = zeros * scales
 
-        pack_num = 32 // awq_linear.w_bit
+        pack_num = 32 // 4
         qscales = torch.zeros(
             (
                 scales.shape[0],
@@ -166,7 +171,8 @@ class WQLinear(nn.Module):
         )
         qscales[:, : scales.shape[1]] = scales
         # awq_linear.scales = scales.clone().half()
-        awq_linear.scales = qscales.transpose(1, 0).contiguous()
+        awq_linear.scales = qscales.contiguous().reshape([qscales.shape[0], qscales.shape[1], 1])
+        awq_linear.scales = awq_linear.scales.to(dtype=torch.float32)
         if linear.bias is not None:
             awq_linear.bias = linear.bias.clone().half()
 
@@ -180,18 +186,17 @@ class WQLinear(nn.Module):
             )
         intweight = torch.cat(intweight, dim=1)
         # intweight = intweight.t().contiguous()
-        intweight = intweight.to(dtype=torch.int32)
-        awq_linear.qweight = pack_intweight(
-            intweight.contiguous(), interleave=4, kstride=64
-        )
+        intweight = intweight.to(dtype=torch.int32).reshape([intweight.shape[0], -1, group_size])
+        awq_linear.qweight = intweight
 
         zeros = zeros.to(dtype=torch.int32)
         scaled_zeros = torch.zeros_like(qscales)
         # scaled_zeros[:, :scales.shape[1]] = -(qscales[:, :scales.shape[1]] * (zeros.to(torch.float32) - 8.0)).to(torch.float16)
         scaled_zeros[:, : scales.shape[1]] = -(
             qscales[:, : scales.shape[1]] * (zeros.to(torch.float32))
-        ).to(torch.float16)
-        awq_linear.scaled_zeros = scaled_zeros.transpose(1, 0).contiguous()
+        )
+
+        awq_linear.scaled_zeros=awq_linear.scaled_zeros.to(dtype=torch.float32)
 
         return awq_linear
 
