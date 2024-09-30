@@ -88,7 +88,8 @@ print("Quantization config:", q_config)
 
 
 def build_model_and_enc(model_path):
-
+    if not os.path.exists(model_path):  # look into ssd
+        raise FileNotFoundError(f"{model_path} not found!")
     print(f"* Building model {model_path}")
 
     # all hf model
@@ -187,10 +188,7 @@ def build_model_and_enc(model_path):
             print("Loading pre-computed AWQ results from", args.load_awq)
             awq_results = torch.load(args.load_awq, map_location="cpu")
             apply_awq(model, awq_results)
-            if args.dump_fake:
-                model.save_pretrained(args.dump_fake)
-                print("Pseudo-quantized models saved at", args.dump_fake)
-            exit(0)
+
         # weight quantization
         if args.w_bit is not None:
             if args.q_backend == "fake":
