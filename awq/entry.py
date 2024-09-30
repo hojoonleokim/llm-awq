@@ -88,7 +88,8 @@ print("Quantization config:", q_config)
 
 
 def build_model_and_enc(model_path):
-
+    if not os.path.exists(model_path):  # look into ssd
+        raise FileNotFoundError(f"{model_path} not found!")
     print(f"* Building model {model_path}")
 
     # all hf model
@@ -196,7 +197,7 @@ def build_model_and_enc(model_path):
                 ), "Need to use real quantization to dump quantized weights"
                 pseudo_quantize_model_weight(model, w_bit=args.w_bit, q_config=q_config)
                 if args.dump_fake:
-                    torch.save(model,"fake_quant_weight.pt")
+                    model.save_pretrained(args.dump_fake)
                     print("Pseudo-quantized models saved at", args.dump_fake)
             elif args.q_backend == "real":  # real quantization
                 real_quantize_model_weight(model, w_bit=args.w_bit, q_config=q_config)
