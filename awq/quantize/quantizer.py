@@ -146,7 +146,7 @@ def real_quantize_model_weight(model, w_bit, q_config, init_only=False):
                 q_linear.to(next(layer.parameters()).device)
                 set_op_by_name(layer, name, q_linear)
             else:
-                module.cuda()
+                #module.cuda()
                 module.weight.data, scales, zeros = pseudo_quantize_tensor(
                     module.weight.data, n_bit=w_bit, get_scale_zp=True, **q_config
                 )
