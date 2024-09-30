@@ -91,8 +91,8 @@ class WQLinear(nn.Module):
         # quick sanity check (make sure aligment)
         assert self.in_features % self.group_size == 0
         #assert out_features % (32 // self.w_bit) == 0
-        pack_num = 32 // self.w_bit
-        int16_pack_num = 16 // self.w_bit
+        pack_num = 32 // 4
+        int16_pack_num = 16 // 4
 
         assert out_features % (self.interleave) == 0
         self.register_buffer(
@@ -160,7 +160,7 @@ class WQLinear(nn.Module):
         
         scale_zeros = zeros * scales
 
-        pack_num = 32 // awq_linear.w_bit
+        pack_num = 32 // 4
         qscales = torch.zeros(
             (
                 scales.shape[0],
