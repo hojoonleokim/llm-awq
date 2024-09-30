@@ -100,7 +100,8 @@ class WQLinear(nn.Module):
             torch.zeros(
                 (
                     out_features,
-                    in_features // int16_pack_num * self.interleave,
+                    in_features // group_size,
+                    group_size
                 ),
                 dtype=torch.int32,
                 device=dev,
@@ -111,8 +112,9 @@ class WQLinear(nn.Module):
             "scales",
             torch.zeros(
                 (
-                    calculate_zeros_width(in_features, self.group_size) * pack_num,
                     out_features,
+                    in_features // group_size,
+                    1
                 ),
                 dtype=torch.float32,
                 device=dev,
@@ -122,8 +124,9 @@ class WQLinear(nn.Module):
             "scaled_zeros",
             torch.zeros(
                 (
-                    calculate_zeros_width(in_features, self.group_size) * pack_num,
                     out_features,
+                    in_features // group_size,
+                    1
                 ),
                 dtype=torch.float32,
                 device=dev,
