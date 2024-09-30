@@ -1,10 +1,10 @@
 import torch
-from datasets import load_dataset
+from datasets import load_dataset,load_from_disk
 
 
 def get_calib_dataset(data="pileval", tokenizer=None, n_samples=512, block_size=512):
     if data == "pileval":
-        dataset = load_dataset("./pile-val-backup", split="validation")
+        dataset = load_from_disk("./pile-val-backup", split="validation")
     else:
         raise NotImplementedError
     dataset = dataset.shuffle(seed=42)
