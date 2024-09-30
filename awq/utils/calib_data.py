@@ -8,7 +8,7 @@ def get_calib_dataset(data="pileval", tokenizer=None, n_samples=512, block_size=
         hf_home_backup = os.environ.get("HF_HOME")
         if "HF_HOME" in os.environ:
             del os.environ["HF_HOME"]
-        dataset = load_from_disk("./pile-val-backup")
+        dataset = load_dataset("mit-han-lab/pile-val-backup", split="validation")
 
         if hf_home_backup is not None:
             os.environ["HF_HOME"] = hf_home_backup
