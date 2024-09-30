@@ -1,4 +1,4 @@
-MODEL= Phi-3-medium-4k-instruct/
+MODEL=Phi-3-medium-4k-instruct
 
 # run AWQ search (optional; we provided the pre-computed results)
 CUDA_VISIBLE_DEVICES=1 python -m awq.entry --model_path ../model/$MODEL \
