@@ -292,11 +292,13 @@ class WQLinear(nn.Module):
         awq_linear.scaled_zeros=awq_linear.scaled_zeros.to(dtype=torch.float32)
 
         #print(awq_linear.qweight)
+
+        print(awq_linear.scales.shape,awq_linear.scaled_zeros.shape,awq_linear.qweight.shape )
+
         alpha, binary, binary_shape, offset = convert_bcq_format(
             awq_linear.scales, awq_linear.scaled_zeros, awq_linear.qweight, qbits=w_bit,
             do_packing=True, in_ch_wise=False)
-        print(awq_linear.binary.device,awq_linear.alpha.device,awq_linear.q_bias.device )
-        print(binary.device,alpha.device,offset.device )
+
         awq_linear.binary = binary
         awq_linear.alpha = alpha
         awq_linear.q_bias = offset
