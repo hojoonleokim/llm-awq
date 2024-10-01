@@ -100,7 +100,8 @@ class WQLinear(nn.Module):
             torch.zeros(
                 (
                     out_features,
-                    in_features // int16_pack_num * self.interleave,
+                    in_features // group_size,
+                    group_size
                 ),
                 dtype=torch.int32,
                 device=dev,
@@ -111,8 +112,9 @@ class WQLinear(nn.Module):
             "scales",
             torch.zeros(
                 (
-                    calculate_zeros_width(in_features, self.group_size) * pack_num,
                     out_features,
+                    in_features // group_size,
+                    1
                 ),
                 dtype=torch.float32,
                 device=dev,
@@ -122,8 +124,9 @@ class WQLinear(nn.Module):
             "scaled_zeros",
             torch.zeros(
                 (
-                    calculate_zeros_width(in_features, self.group_size) * pack_num,
                     out_features,
+                    in_features // group_size,
+                    1
                 ),
                 dtype=torch.float32,
                 device=dev,
@@ -157,9 +160,9 @@ class WQLinear(nn.Module):
 
         awq_linear.scaled_zeros = zeros.contiguous().reshape([zeros.shape[0], zeros.shape[1], 1])
         #print(scales.size()," ",zeros.size())
-        
+        print("1  ",scales.shape,scaled_zeros.shape)
         scale_zeros = zeros * scales
-
+        
         pack_num = 32 // 4
         qscales = torch.zeros(
             (
@@ -184,6 +187,7 @@ class WQLinear(nn.Module):
                     / qscales[:, idx // group_size]
                 ).to(torch.int)[:, None]
             )
+        print("2  ",intweight.shape)
         intweight = torch.cat(intweight, dim=1)
         # intweight = intweight.t().contiguous()
         intweight = intweight.to(dtype=torch.int32).reshape([intweight.shape[0], -1, group_size])
