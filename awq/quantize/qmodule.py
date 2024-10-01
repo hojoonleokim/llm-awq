@@ -59,7 +59,7 @@ def calculate_zeros_width(in_features, group_size=128, pack_num=8):
     base_width = make_divisible(in_features // group_size, pack_num)
     base_width = make_divisible(base_width, size_multiplier) * size_multiplier
     return base_width
-def convert_bcq_format(self, scale, zero, quant_data, qbits, do_packing=False, in_ch_wise=False):
+def convert_bcq_format( scale, zero, quant_data, qbits, do_packing=False, in_ch_wise=False):
     global PACKER
 
     zero   = scale * zero
