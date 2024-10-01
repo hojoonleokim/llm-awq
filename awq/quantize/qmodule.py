@@ -249,7 +249,7 @@ class WQLinear(nn.Module):
         assert scales is not None and zeros is not None
 
         awq_linear.scaled_zeros = zeros.contiguous().reshape([zeros.shape[0], zeros.shape[1], 1])
-        #print(scales.size()," ",zeros.size())
+        print("1@ ",scales.size()," ",zeros.size())
         
         scale_zeros = zeros * scales
 
@@ -293,7 +293,7 @@ class WQLinear(nn.Module):
 
         #print(awq_linear.qweight)
 
-        print(awq_linear.scales.shape,awq_linear.scaled_zeros.shape,awq_linear.qweight.shape )
+        print("2@ ",awq_linear.scales.shape,awq_linear.scaled_zeros.shape,awq_linear.qweight.shape )
 
         alpha, binary, binary_shape, offset = convert_bcq_format(
             awq_linear.scales, awq_linear.scaled_zeros, awq_linear.qweight, qbits=w_bit,
