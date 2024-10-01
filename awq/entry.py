@@ -213,7 +213,7 @@ def build_model_and_enc(model_path):
 
                     filtered_state_dict = {k: v for k, v in model.cpu().state_dict().items() if not any(substr in k for substr in ['qweight', 'scaled_zeros', 'scales'])}
 
-                    torch.save(filtered_state_dict,args.output_path)
+                    torch.save(filtered_state_dict,args.dump_quant)
                     exit(0)
             else:
                 raise NotImplementedError
