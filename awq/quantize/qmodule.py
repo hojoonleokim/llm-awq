@@ -76,7 +76,7 @@ def convert_bcq_format( scale, zero, quant_data, qbits, do_packing=False, in_ch_
 
     if do_packing == True:
         binary, binary_shape = PACKER.pack(binary)
-        binary = binary.to(torch.device('cpu'))
+        binary = binary.to(quant_data.device)
     #print(binary)
     return scale, binary, binary_shape, offset
 
