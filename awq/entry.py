@@ -210,9 +210,10 @@ def build_model_and_enc(model_path):
                     os.makedirs(dirpath, exist_ok=True)
 
                     print(f"Saving the quantized model at {args.dump_quant}...")
+
                     filtered_state_dict = {k: v for k, v in model.cpu().state_dict().items() if not any(substr in k for substr in ['qweight', 'scaled_zeros', 'scales'])}
 
-                    torch.save(filtered_state_dict,args.output_name)
+                    torch.save(filtered_state_dict,args.output_path)
                     exit(0)
             else:
                 raise NotImplementedError
