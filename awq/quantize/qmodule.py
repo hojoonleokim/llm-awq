@@ -77,7 +77,7 @@ def convert_bcq_format( scale, zero, quant_data, qbits, do_packing=False, in_ch_
     if do_packing == True:
         binary, binary_shape = PACKER.pack(binary)
         binary = binary.to(torch.device('cpu'))
-        #print(binary,self.data.device)
+    print(binary)
     return scale, binary, binary_shape, offset
 
 def pack_intweight(unpacked_qweight, interleave, kstride):
@@ -291,7 +291,7 @@ class WQLinear(nn.Module):
 
         awq_linear.scaled_zeros=awq_linear.scaled_zeros.to(dtype=torch.float32)
 
-        print(awq_linear.w_quant)
+        print(awq_linear.qweight)
         alpha, binary, binary_shape, offset = convert_bcq_format(
             awq_linear.scales, awq_linear.scaled_zeros, awq_linear.qweight, qbits=w_bit,
             do_packing=True, in_ch_wise=False)
