@@ -257,7 +257,7 @@ class WQLinear(nn.Module):
         qscales = torch.zeros(
             (
                 scales.shape[0],
-                calculate_zeros_width(linear.in_features, group_size) * pack_num,
+                scales.shape[1],
             ),
             dtype=torch.float16,
             device=scales.device,
