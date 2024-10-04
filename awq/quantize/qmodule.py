@@ -298,7 +298,7 @@ class WQLinear(nn.Module):
         print("2@ ",awq_linear.scales.shape,awq_linear.scaled_zeros.shape,awq_linear.qweight.shape )
 
         alpha, binary, binary_shape, offset = convert_bcq_format(
-            awq_linear.scales, zeros, intweight, qbits=w_bit,
+            scales, zeros, intweight, qbits=w_bit,
             do_packing=True, in_ch_wise=False)
 
         awq_linear.binary = binary
