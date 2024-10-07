@@ -82,7 +82,7 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
     N = binary.shape[0] #output
 
     scale = scale.permute(1,2,0).to(torch.device('cuda:0')).contiguous() # G B O
-    binary = binary # I B O
+    binary = binary.to(torch.device('cuda:0')) # I B O
     offset = offset.permute(1,0).to(torch.device('cuda:0')).contiguous() # G O
 
     bW = torch.zeros([K // 32, qbits, N], dtype=torch.int64).to(torch.device('cuda:0'))
