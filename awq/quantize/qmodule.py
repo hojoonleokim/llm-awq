@@ -82,7 +82,7 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
     N = binary.shape[0] #output
 
     scale_ = scale.permute(1,2,0).contiguous() # G B O
-    binary_ = binary.permute(1,2,0).contiguous().to(torch.device('cuda:0'))
+    binary_ = binary.permute(1,2,0).contiguous().to(torch.device('cpu'))
     offset_ = offset.permute(1,0).contiguous() # G O
 
     bW_ = torch.zeros([K // 32, qbits, N], dtype=torch.int32,device ='cuda')
@@ -101,7 +101,7 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
     for b in range(qbits):
         for n in range(N):
             for k in range(0, K, 32):
-                s = np.dot(binary_[k:k+32, b, n], 1 << np.arange(32))
+                s = np.dot(binary_[k:k+32, b, n] , 1 << np.arange(32))
                 bW[k // 32, b, n] = s & 0xFFFFFFFF  # 32비트 값만 저장
 
     bW_ = torch.from_numpy(bW).to(torch.int32)
