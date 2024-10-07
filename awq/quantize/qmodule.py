@@ -172,43 +172,7 @@ class WQLinear(nn.Module):
         int16_pack_num = 16 // 4
 
         assert out_features % (self.interleave) == 0
-        self.register_buffer(
-            "qweight",
-            torch.zeros(
-                (
-                    out_features,
-                    in_features // group_size,
-                    group_size
-                ),
-                dtype=torch.int32,
-                device=dev,
-            ),
-        )
-
-        self.register_buffer(
-            "scales",
-            torch.zeros(
-                (
-                    out_features,
-                    in_features // group_size,
-                    1
-                ),
-                dtype=torch.float32,
-                device=dev,
-            ),
-        )
-        self.register_buffer(
-            "scaled_zeros",
-            torch.zeros(
-                (
-                    out_features,
-                    in_features // group_size,
-                    1
-                ),
-                dtype=torch.float32,
-                device=dev,
-            ),
-        )        
+    
         self.register_buffer(
             "q_bias",
             torch.zeros(
@@ -244,6 +208,7 @@ class WQLinear(nn.Module):
                 device=dev,
             ),
         )    
+        
         if bias:
             self.register_buffer(
                 "bias", torch.zeros((out_features), dtype=torch.float16, device=dev)
@@ -266,60 +231,8 @@ class WQLinear(nn.Module):
         if init_only:  # just prepare for loading sd
             return awq_linear
 
-        # need scales and zeros info for real quantization
-        assert scales is not None and zeros is not None
-
-        awq_linear.scaled_zeros = zeros.contiguous().reshape([zeros.shape[0], zeros.shape[1], 1])
-        print("1@ ",scales.size()," ",zeros.size())
-        
-        scale_zeros = zeros * scales
-
-        pack_num = 32 // 4
-        qscales = torch.zeros(
-            (
-                scales.shape[0],
-                scales.shape[1],
-            ),
-            dtype=torch.float16,
-            device=scales.device,
-        )
-        print("3@",qscales.shape)
-        qscales[:, : scales.shape[1]] = scales
-        # awq_linear.scales = scales.clone().half()
-        awq_linear.scales = qscales.contiguous().reshape([qscales.shape[0], qscales.shape[1], 1])
-        awq_linear.scales = awq_linear.scales.to(dtype=torch.float32)
-        if linear.bias is not None:
-            awq_linear.bias = linear.bias.clone().half()
-
-        intweight = []
-        for idx in range(awq_linear.in_features):
-            intweight.append(
-                torch.round(
-                    (linear.weight.data[:, idx] + scale_zeros[:, idx // group_size])
-                    / qscales[:, idx // group_size]
-                ).to(torch.int)[:, None]
-            )
-        intweight = torch.cat(intweight, dim=1)
-        # intweight = intweight.t().contiguous()
-        intweight = intweight.to(dtype=torch.int32).reshape([intweight.shape[0], -1])
-        awq_linear.qweight = intweight
-
-        zeros = zeros.to(dtype=torch.int32)
-        scaled_zeros = torch.zeros_like(qscales)
-        # scaled_zeros[:, :scales.shape[1]] = -(qscales[:, :scales.shape[1]] * (zeros.to(torch.float32) - 8.0)).to(torch.float16)
-        scaled_zeros[:, : scales.shape[1]] = -(
-            qscales[:, : scales.shape[1]] * (zeros.to(torch.float32))
-        )
-
-        awq_linear.scaled_zeros=awq_linear.scaled_zeros.to(dtype=torch.float32)
-        zeros = zeros.reshape([zeros.shape[0],-1,1]).to(dtype=torch.float32)
-        scales = scales.reshape([zeros.shape[0],-1,1]).to(dtype=torch.float32)
-        #print(awq_linear.qweight)
-
-        print("2@ ",awq_linear.scales.shape,awq_linear.scaled_zeros.shape,awq_linear.qweight.shape )
-
         alpha, binary, binary_shape, offset = convert_bcq_format(
-            scales, zeros, intweight, qbits=w_bit,
+            scales, zeros, linear.weight.data, qbits=w_bit,
             do_packing=True, in_ch_wise=False)
 
         awq_linear.binary = binary
