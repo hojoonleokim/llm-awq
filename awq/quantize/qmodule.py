@@ -82,21 +82,20 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
     N = binary.shape[0] #output
 
     scale_ = scale.permute(1,2,0).contiguous() # G B O
-    binary_ = binary.permute(1,2,0).contiguous()
+    binary_ = binary.permute(0,2,1).contiguous()
     offset_ = offset.permute(1,0).contiguous() # G O
 
     bW = torch.zeros([K // 32, qbits, N], dtype=torch.int64).to(torch.device('cuda:0'))
 
     if do_packing == True:
-        #pragma omp parallel for
-        for b in range(qbits):
-            for k in range(0, K, 32):
-                s = 0
-                for t in range(32):
-                    for n in range(N):
-                        if binary_[k+t][b][n] == 1:
+        for n in range(N):
+            for b in range(qbits):
+                for k in range(0, K, 32):
+                    s = 0
+                    for t in range(32):
+                        if binary_[n][b][k + t] == 1:
                             s |= (1 << t)  # 비트를 설정
-                    bW[k // 32][b][n] = s
+                    bW[k // 32][b][n] = (s & 0xFFFFFFFF)
 
     bW = bW.to(torch.int32)
     return scale_, bW, binary_shape, offset_
