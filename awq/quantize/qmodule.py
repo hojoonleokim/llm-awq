@@ -64,7 +64,7 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
     global PACKER
 
     zero   = scale * zero #O ,#G,1
-    upack  = torch.Tensor([[2**(i) for i in range(qbits)]])
+    upack  = torch.Tensor([[2**(i) for i in range(qbits)]]).to(torch.device('cuda:0'))
     scale  = scale / 2.0
     scale  = torch.matmul(scale, upack) #O G B
 
