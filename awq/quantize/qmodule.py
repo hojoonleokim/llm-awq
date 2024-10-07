@@ -82,10 +82,10 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
     N = binary.shape[0] #output
 
     scale_ = scale.permute(1,2,0).contiguous() # G B O
-    binary_ = binary.permute(1,2,0).contiguous().to(torch.int64).to(torch.device('cuda:0'))
+    binary_ = binary.permute(1,2,0).contiguous().to(torch.device('cuda:0'))
     offset_ = offset.permute(1,0).contiguous() # G O
 
-    bW = torch.zeros([K // 32, qbits, N], dtype=torch.int64,device ='cuda')
+    bW_ = torch.zeros([K // 32, qbits, N], dtype=torch.int32,device ='cuda')
 
     #if do_packing == True:
     #    for n in range(N):
@@ -96,18 +96,16 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
     #                    if binary_[n][b][k + t] == 1:
     #                        s |= (1 << t)  # 비트를 설정
     #                bW[k // 32][b][n] = (s & 0xFFFFFFFF)
+    bW = np.zeros((K // 32, qbits, N), dtype=np.uint32)
+
     for b in range(qbits):
         for n in range(N):
             for k in range(0, K, 32):
-                # torch.int32로 변환
-                binary_chunk = binary_[k:k+32, b, n].to(torch.int64).to(torch.device('cuda:0'))
-                bit_values = torch.tensor([1 << i for i in range(32)], dtype=torch.int64, device='cuda')
-                
-                # 원소 곱셈 후 합산을 통해 내적 연산을 수행
-                s = torch.sum(binary_chunk * bit_values)
-                bW[k // 32, b, n] = s & 0xFFFFFFFF
-    bW = bW.to(torch.int32)
-    return scale_, bW, binary_shape, offset_
+                s = np.dot(binary_[k:k+32, b, n], 1 << np.arange(32))
+                bW[k // 32, b, n] = s & 0xFFFFFFFF  # 32비트 값만 저장
+
+    bW_ = torch.from_numpy(bW).to(torch.int32)
+    return scale_, bW_, binary_shape, offset_
 
 def pack_intweight(unpacked_qweight, interleave, kstride):
     # unpacked_qweight: [N, K]
