@@ -16,6 +16,12 @@ def quantize(x, scale, zero, maxq):
     q = torch.clamp(torch.round(x / scale) + zero, 0, maxq)
     return scale * (q - zero)
 
+class CompressionParameter(nn.Parameter):
+    def compress(self, **kwargs):
+        raise NotImplemented
+
+    def decompress(self, **kwargs):
+        raise NotImplemented
 class RTNParameter(CompressionParameter):
     def compress(self, in_ch_wise=False, **kwargs):
         data_shape = self.data.shape
