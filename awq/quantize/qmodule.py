@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import awq_inference_engine  # with CUDA kernels
 import numpy as np
-
+from concurrent.futures import ProcessPoolExecutor
 class Packer:
     def __init__(self):
         self.s = torch.from_numpy(np.array([1, 2, 4, 8, 16, 32, 64, 128])).view(
@@ -61,51 +61,45 @@ def calculate_zeros_width(in_features, group_size=128, pack_num=8):
     return base_width
 
 def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_wise=False):
-    global PACKER
+        global PACKER
 
-    zero   = scale * zero #O ,#G,1
-    upack  = torch.Tensor([[2**(i) for i in range(qbits)]]).to(torch.device('cuda:0'))
-    scale  = scale / 2.0
-    scale  = torch.matmul(scale, upack) #O G B
+        zero   = scale * zero #O ,#G,1
+        upack  = torch.Tensor([[2**(i) for i in range(qbits)]])
+        scale  = scale / 2.0
+        scale  = torch.matmul(scale, upack) #O G B
 
-    offset = scale.sum(-1).unsqueeze(-1) - zero #O G 1
-    offset= offset.reshape(offset.shape[0],-1)
-    binary = torch.zeros(list(quant_data.shape) + [qbits])
-    binary_shape = binary.shape
-    
-    quant_data = quant_data.to(torch.int)
-    for i in range(qbits):
-        binary[:, :, i] = ((quant_data >> i) & 1) * 2 - 1
-        # O I B
+        offset = scale.sum(-1).unsqueeze(-1) - zero #O G 1
+        offset= offset.reshape(offset.shape[0],-1)
+        binary = torch.zeros(list(quant_data.shape) + [qbits])
+        binary_shape = binary.shape
+        
+        quant_data = quant_data.to(torch.int)
+        for i in range(qbits):
+            binary[:, :, i] = ((quant_data >> i) & 1) * 2 - 1
+            # O I B
 
-    K = binary.shape[1] #input
-    N = binary.shape[0] #output
+        K = binary.shape[1] #input
+        N = binary.shape[0] #output
 
-    scale_ = scale.permute(1,2,0).contiguous() # G B O
-    binary_ = binary.permute(1,2,0).contiguous().to(torch.device('cpu'))
-    offset_ = offset.permute(1,0).contiguous() # G O
+        scale_ = scale.permute(1,2,0).contiguous() # G B O
+        binary_ = binary.permute(0,2,1).contiguous().to(torch.device('cuda'))
+        offset_ = offset.permute(1,0).contiguous() # G O
 
-    bW_ = torch.zeros([K // 32, qbits, N], dtype=torch.int32,device ='cuda')
+        bW = torch.zeros([K // 32, qbits, N], dtype=torch.int64,device ='cuda')
 
-    #if do_packing == True:
-    #    for n in range(N):
-    #        for b in range(qbits):
-    #            for k in range(0, K, 32):
-    #                s = 0
-    #                for t in range(32):
-    #                    if binary_[n][b][k + t] == 1:
-    #                        s |= (1 << t)  # 비트를 설정
-    #                bW[k // 32][b][n] = (s & 0xFFFFFFFF)
-    bW = np.zeros((K // 32, qbits, N), dtype=np.uint32)
+        if do_packing == True:
+            for n in range(N):
+                for b in range(qbits):
+                    for k in range(0, K, 32):
+                        s = 0
+                        for t in range(32):
+                            if binary_[n][b][k + t] == 1:
+                                s |= (1 << t)  # 비트를 설정
+                        bW[k // 32][b][n] = s
 
-    for b in range(qbits):
-        for n in range(N):
-            for k in range(0, K, 32):
-                s = np.dot(binary_[k:k+32, b, n] , 1 << np.arange(32))
-                bW[k // 32, b, n] = s # 32비트 값만 저장
 
-    bW_ = torch.from_numpy(bW).to(torch.int32)
-    return scale_, bW_, binary_shape, offset_
+        bW = bW.to(torch.int32)
+        return scale_, bW, binary_shape, offset_
 
 def pack_intweight(unpacked_qweight, interleave, kstride):
     # unpacked_qweight: [N, K]
