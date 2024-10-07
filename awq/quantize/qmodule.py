@@ -59,26 +59,46 @@ def calculate_zeros_width(in_features, group_size=128, pack_num=8):
     base_width = make_divisible(in_features // group_size, pack_num)
     base_width = make_divisible(base_width, size_multiplier) * size_multiplier
     return base_width
-def convert_bcq_format( scale, zero, quant_data, qbits, do_packing=False, in_ch_wise=False):
+
+def convert_bcq_format(self, scale, zero, quant_data, qbits, do_packing=False, in_ch_wise=False):
     global PACKER
 
-    zero   = scale * zero
-    upack  = torch.Tensor([[2**i for i in range(qbits)]]).to(torch.device('cuda:0'))
+    zero   = scale * zero #O ,#G,1
+    upack  = torch.Tensor([[2**(i) for i in range(qbits)]])
     scale  = scale / 2.0
-    scale  = torch.matmul(scale, upack)
+    scale  = torch.matmul(scale, upack) #O G B
 
-    offset = scale.sum(-1).unsqueeze(-1) - zero
-
+    offset = scale.sum(-1).unsqueeze(-1) - zero #O G 1
+    offset= offset.reshape(offset.shape[0],-1)
     binary = torch.zeros(list(quant_data.shape) + [qbits])
     binary_shape = binary.shape
+    
+    quant_data = quant_data.to(torch.int)
     for i in range(qbits):
-        binary[:, :, :, i] = ((quant_data >> i) & 1) * 2.0 - 1.0
+        binary[:, :, i] = ((quant_data >> i) & 1) * 2 - 1
+        # O I B
+
+    K = binary.shape[1] #input
+    N = binary.shape[0] #output
+
+    scale = scale.permute(1,2,0).contiguous() # G B O
+    binary = binary.permute(1,2,0).contiguous() # I B O
+    offset = offset.permute(1,0).contiguous() # G O
+
+    bW = torch.zeros([K // 32, qbits, N], dtype=torch.int64)
 
     if do_packing == True:
-        binary, binary_shape = PACKER.pack(binary)
-        binary = binary.to(quant_data.device)
-    #print(binary)
-    return scale, binary, binary_shape, offset
+        for n in range(N):
+            for b in range(qbits):
+                for k in range(0, K, 32):
+                    s = 0
+                    for t in range(32):
+                        if binary[k + t][b][n] == 1:
+                            s |= (1 << t)  # 비트를 설정
+                    bW[k // 32][b][n] = (s & 0xFFFFFFFF)
+
+    bW = bW.to(torch.int32).contiguous()
+    return scale, bW, binary_shape, offset
 
 def pack_intweight(unpacked_qweight, interleave, kstride):
     # unpacked_qweight: [N, K]
@@ -193,9 +213,8 @@ class WQLinear(nn.Module):
             "q_bias",
             torch.zeros(
                 (
-                    out_features,
-                    in_features // group_size,
-                    1
+                    in_features//128,
+                    out_features
                 ),
                 dtype=torch.float32,
                 device=dev,
@@ -205,9 +224,9 @@ class WQLinear(nn.Module):
             "alpha",
             torch.zeros(
                 (
-                    out_features,
-                    in_features // group_size,
-                    self.w_bit
+                    in_features//128,
+                    self.w_bit,
+                    out_features
                 ),
                 dtype=torch.float32,
                 device=dev,
@@ -217,9 +236,11 @@ class WQLinear(nn.Module):
             "binary",
             torch.zeros(
                 (
-                    out_features*in_features*self.w_bit//8
+                    in_features//32,
+                    self.w_bit,
+                    out_features
                 ),
-                dtype=torch.int8,
+                dtype=torch.int32,
                 device=dev,
             ),
         )    
@@ -280,7 +301,7 @@ class WQLinear(nn.Module):
             )
         intweight = torch.cat(intweight, dim=1)
         # intweight = intweight.t().contiguous()
-        intweight = intweight.to(dtype=torch.int32).reshape([intweight.shape[0], -1, group_size])
+        intweight = intweight.to(dtype=torch.int32).reshape([intweight.shape[0], -1])
         awq_linear.qweight = intweight
 
         zeros = zeros.to(dtype=torch.int32)
