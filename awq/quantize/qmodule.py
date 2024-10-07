@@ -102,7 +102,7 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
         for n in range(N):
             for k in range(0, K, 32):
                 s = np.dot(binary_[k:k+32, b, n] , 1 << np.arange(32))
-                bW[k // 32, b, n] = s & 0xFFFFFFFF  # 32비트 값만 저장
+                bW[k // 32, b, n] = s # 32비트 값만 저장
 
     bW_ = torch.from_numpy(bW).to(torch.int32)
     return scale_, bW_, binary_shape, offset_
