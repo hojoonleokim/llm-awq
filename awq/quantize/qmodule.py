@@ -100,7 +100,7 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
         for n in range(N):
             for k in range(0, K, 32):
                 # torch.int32로 변환
-                binary_chunk = binary[k:k+32, b, n].to(torch.int64)
+                binary_chunk = binary[k:k+32, b, n].to(torch.int64).to(torch.device('cuda:0'))
                 bit_values = torch.tensor([1 << i for i in range(32)], dtype=torch.int64, device='cuda')
                 
                 # 원소 곱셈 후 합산을 통해 내적 연산을 수행
