@@ -97,7 +97,7 @@ class RTNParameter(CompressionParameter):
         N = binary.shape[0] #output
 
         scale = scale.permute(1,2,0).contiguous() # G B O
-        binary = binary # I B O
+        #binary = binary # I B O
         offset = offset.permute(1,0).contiguous() # G O
 
         bW = torch.zeros([K // 32, qbits, N], dtype=torch.int64)
@@ -327,4 +327,83 @@ def pseudo_quantize_tensor(
 
 
 
+def compress(data, in_ch_wise=False, **kwargs):
+    data_shape = data.shape
+    group_size = -1
+    if 'group_size' in kwargs:
+        group_size = kwargs.pop('group_size')
+    out_ch = data_shape[0]
+    in_ch = data_shape[1]
 
+    quant = Quantizer()
+    quant.configure(**kwargs)
+    if in_ch_wise == False:
+        if group_size > 0:
+            data_ = data.reshape([-1, group_size])
+        quant.find_params(data, weight=True)
+        quant_data  = torch.clamp(torch.round(data / quant.scale) + quant.zero, 0, quant.maxq)
+        quant_data  = quant_data.reshape([out_ch, -1]).to(torch.int)
+        quant.scale = quant.scale.reshape([out_ch, -1, 1])
+        quant.zero  = quant.zero.reshape([out_ch, -1, 1])
+
+    return quant.scale, quant.zero, quant_data, quant_data.shape
+
+@torch.no_grad()
+def pseudo_quantize_model_weight(
+    model,
+    w_bit,
+    q_config,
+):
+    from .pre_quant import get_blocks, get_named_linears
+
+    layers = get_blocks(model)
+    for i in tqdm(range(len(layers)), desc="pseudo weight quantization..."):
+        named_linears = get_named_linears(layers[i])
+        for n, m in named_linears.items():
+            m.cuda()
+            m.weight.data = pseudo_quantize_tensor(
+                m.weight.data, n_bit=w_bit, **q_config
+            )
+            m.cpu()
+
+
+@torch.no_grad()
+def real_quantize_model_weight(model, w_bit, q_config, init_only=False):
+    from .qmodule import WQLinear
+    from .pre_quant import get_blocks, get_named_linears
+
+    assert q_config["zero_point"], "We only support zero_point quantization now."
+
+    layers = get_blocks(model)
+    for i in tqdm(
+        range(len(layers)),
+        desc="real weight quantization..." + ("(init only)" if init_only else ""),
+    ):
+        layer = layers[i]
+        named_linears = get_named_linears(layer)
+        scale_activations(layer)
+
+        for name, module in named_linears.items():
+            if init_only:
+                q_linear = WQLinear.from_linear(
+                    module, w_bit, q_config["q_group_size"], True
+                )
+                q_linear.to(next(layer.parameters()).device)
+                set_op_by_name(layer, name, q_linear)
+            else:
+                
+                module.cuda()
+                w_rtn = RTNParameter(module.weight.data)
+                scales, zeros, data, w_quant_shape = w_rtn.compress(in_ch_wise=False, qbits=4, group_size=128, perchannel=True, sym=False)
+
+                q_linear = WQLinear.from_linear(
+                    module, w_bit, q_config["q_group_size"],data, False,scales, zeros
+                )
+                module.cpu()
+                q_linear.to(next(layer.parameters()).device)
+                set_op_by_name(layer, name, q_linear)
+                torch.cuda.empty_cache()
+                gc.collect()
+
+    torch.cuda.empty_cache()
+    gc.collect()
