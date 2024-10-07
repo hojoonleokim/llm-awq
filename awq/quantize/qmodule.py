@@ -208,7 +208,7 @@ class WQLinear(nn.Module):
                 device=dev,
             ),
         )    
-        
+
         if bias:
             self.register_buffer(
                 "bias", torch.zeros((out_features), dtype=torch.float16, device=dev)
@@ -218,7 +218,7 @@ class WQLinear(nn.Module):
 
     @classmethod
     def from_linear(
-        cls, linear, w_bit, group_size, init_only=False, scales=None, zeros=None
+        cls, linear, w_bit, group_size, init_only=False, scales=None, zeros=None,data
     ):
         awq_linear = cls(
             w_bit,
@@ -232,7 +232,7 @@ class WQLinear(nn.Module):
             return awq_linear
 
         alpha, binary, binary_shape, offset = convert_bcq_format(
-            scales, zeros, linear.weight.data, qbits=w_bit,
+            scales, zeros, data, qbits=w_bit,
             do_packing=True, in_ch_wise=False)
 
         awq_linear.binary = binary
