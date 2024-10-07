@@ -99,8 +99,12 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
     for b in range(qbits):
         for n in range(N):
             for k in range(0, K, 32):
-                # 각 32개 비트에 대해 비트셋을 계산
-                s = torch.dot(binary_[k:k+32, b, n], torch.tensor([1 << i for i in range(32)],dtype=torch.int64, device='cuda'))
+                # torch.int32로 변환
+                binary_chunk = binary[k:k+32, b, n].to(torch.int32)
+                bit_values = torch.tensor([1 << i for i in range(32)], dtype=torch.int32, device='cuda')
+                
+                # 원소 곱셈 후 합산을 통해 내적 연산을 수행
+                s = torch.sum(binary_chunk * bit_values)
                 bW[k // 32, b, n] = s & 0xFFFFFFFF
     bW = bW.to(torch.int32)
     return scale_, bW, binary_shape, offset_
