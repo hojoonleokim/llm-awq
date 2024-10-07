@@ -218,7 +218,7 @@ class WQLinear(nn.Module):
 
     @classmethod
     def from_linear(
-        cls, linear, w_bit, group_size, init_only=False, scales=None, zeros=None,data
+        cls, linear, w_bit, group_size, init_only=False,data, scales=None, zeros=None
     ):
         awq_linear = cls(
             w_bit,

@@ -394,7 +394,7 @@ def real_quantize_model_weight(model, w_bit, q_config, init_only=False):
                 scales, zeros, data, w_quant_shape = w_rtn.compress(in_ch_wise=False, qbits=4, group_size=128, perchannel=True, sym=False)
 
                 q_linear = WQLinear.from_linear(
-                    module, w_bit, q_config["q_group_size"], False, scales, zeros,data
+                    module, w_bit, q_config["q_group_size"], False, data,scales, zeros
                 )
                 module.cpu()
                 q_linear.to(next(layer.parameters()).device)
