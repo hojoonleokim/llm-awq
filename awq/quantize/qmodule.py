@@ -87,15 +87,15 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
 
     bW = torch.zeros([K // 32, qbits, N], dtype=torch.int64).to(torch.device('cuda:0'))
 
-    if do_packing == True:
-        for n in range(N):
-            for b in range(qbits):
-                for k in range(0, K, 32):
-                    s = 0
-                    for t in range(32):
-                        if binary_[k + t][b][n] == 1:
-                            s |= (1 << t)  # 비트를 설정
-                    bW[k // 32][b][n] = (s & 0xFFFFFFFF)
+    #if do_packing == True:
+    #    for n in range(N):
+    #        for b in range(qbits):
+    #            for k in range(0, K, 32):
+    #                s = 0
+    #                for t in range(32):
+    #                    if binary_[n][b][k + t] == 1:
+    #                        s |= (1 << t)  # 비트를 설정
+    #                bW[k // 32][b][n] = (s & 0xFFFFFFFF)
 
     bW = bW.to(torch.int32)
     return scale_, bW, binary_shape, offset_
