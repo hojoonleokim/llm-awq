@@ -81,9 +81,9 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
     K = binary.shape[1] #input
     N = binary.shape[0] #output
 
-    scale = scale.permute(1,2,0).contiguous() # G B O
-    binary = binary # I B O
-    offset = offset.permute(1,0).contiguous() # G O
+    scale_ = scale.permute(1,2,0).contiguous() # G B O
+
+    offset_ = offset.permute(1,0).contiguous() # G O
 
     bW = torch.zeros([K // 32, qbits, N], dtype=torch.int64).to(torch.device('cuda:0'))
 
@@ -99,7 +99,7 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
                     bW[k // 32][b][n] = s
 
     bW = bW.to(torch.int32)
-    return scale, bW, binary_shape, offset
+    return scale_, bW, binary_shape, offset_
 
 def pack_intweight(unpacked_qweight, interleave, kstride):
     # unpacked_qweight: [N, K]
