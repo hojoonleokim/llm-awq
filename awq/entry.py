@@ -189,7 +189,9 @@ def build_model_and_enc(model_path):
             print("Loading pre-computed AWQ results from", args.load_awq)
             awq_results = torch.load(args.load_awq, map_location="cpu")
             apply_awq(model, awq_results)
-
+            if args.dump_fake:
+                model.save_pretrained(args.dump_fake)
+                exit(0)
         # weight quantization
         if args.w_bit is not None:
             if args.q_backend == "fake":
@@ -198,8 +200,8 @@ def build_model_and_enc(model_path):
                 ), "Need to use real quantization to dump quantized weights"
                 pseudo_quantize_model_weight(model, w_bit=args.w_bit, q_config=q_config)
                 if args.dump_fake:
-                    weight_tensor = model.state_dict()["model.layers.30.self_attn.v_proj.weight"]
-                    torch.save(weight_tensor, "layer30_v_proj_weight.pt")
+                    model.save_pretrained(args.dump_fake)
+                    print("Pseudo-quantized models saved at", args.dump_fake)
             elif args.q_backend == "real":  # real quantization
                 real_quantize_model_weight(model, w_bit=args.w_bit, q_config=q_config)
                 if args.dump_quant:
