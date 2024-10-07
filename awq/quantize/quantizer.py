@@ -389,7 +389,7 @@ def real_quantize_model_weight(model, w_bit, q_config, init_only=False):
                 set_op_by_name(layer, name, q_linear)
             else:
                 
-
+                module.cuda()
                 w_rtn = RTNParameter(module.weight.data)
                 scales, zeros, data, w_quant_shape = w_rtn.compress(in_ch_wise=False, qbits=4, group_size=128, perchannel=True, sym=False)
 
