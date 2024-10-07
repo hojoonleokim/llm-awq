@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import awq_inference_engine  # with CUDA kernels
 import numpy as np
-from concurrent.futures import ProcessPoolExecutor
+
 class Packer:
     def __init__(self):
         self.s = torch.from_numpy(np.array([1, 2, 4, 8, 16, 32, 64, 128])).view(
@@ -64,7 +64,7 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
         global PACKER
 
         zero   = scale * zero #O ,#G,1
-        upack  = torch.Tensor([[2**(i) for i in range(qbits)]])
+        upack  = torch.Tensor([[2**(i) for i in range(qbits)]]).to(torch.device('cuda:0'))
         scale  = scale / 2.0
         scale  = torch.matmul(scale, upack) #O G B
 
