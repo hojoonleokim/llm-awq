@@ -149,6 +149,7 @@ def build_model_and_enc(model_path):
             checkpoint=args.load_quant,
             device_map=device_map,
             offload_state_dict=True,
+            offload_dir="/"
         )
         # Dispatch model
         model = simple_dispatch_model(model, device_map=device_map)
