@@ -87,7 +87,7 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
     bW_ = binary_*matrix_132
 
     bW__ = torch.sum(bW_, dim=1, keepdim=True)
-    bW___ = bW___.to(torch.int32)
+    bW__ = bW__.to(torch.int32)
     bW___ = bW__.reshape(N,qbits,-1).permute(2,1,0).contiguous()
 
     return scale_, bW___, binary_shape, offset_
