@@ -291,7 +291,7 @@ class WQLinear(nn.Module):
             )
         intweight = torch.cat(intweight, dim=1)
         # intweight = intweight.t().contiguous()
-        intweight = intweight.to(dtype=torch.int32).reshape([intweight.shape[0], -1, group_size])
+        intweight = intweight.to(dtype=torch.int32).reshape([intweight.shape[0], -1])
         awq_linear.qweight = intweight
 
         zeros = zeros.to(dtype=torch.int32)
