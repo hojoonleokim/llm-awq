@@ -69,7 +69,7 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
 
     offset = scale.sum(-1).unsqueeze(-1) - zero
     offset= offset.reshape(offset.shape[0],-1)
-    binary = torch.zeros(list(quant_data.shape) + [qbits],dtype =torch.int32)
+    binary = torch.zeros(list(quant_data.shape) + [qbits],dtype =torch.int64)
     binary_shape = binary.shape
     
     quant_data = quant_data.to(torch.int)
@@ -87,7 +87,7 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
     bW_ = binary_*matrix_132
 
     bW__ = torch.sum(bW_, dim=1, keepdim=True)
-    bW___ = bW__.reshape(N,qbits,-1).permute(2,1,0).to(torch.int32).contiguous()
+    bW___ = bW__.reshape(N,qbits,-1).permute(2,1,0).contiguous()
     
     return scale_, bW___, binary_shape, offset_
 
@@ -195,7 +195,7 @@ class WQLinear(nn.Module):
                     self.w_bit,
                     out_features
                 ),
-                dtype=torch.int32,
+                dtype=torch.int64,
                 device=dev,
             ),
         )    
