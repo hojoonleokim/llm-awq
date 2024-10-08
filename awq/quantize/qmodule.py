@@ -87,8 +87,9 @@ def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_w
     bW_ = binary_*matrix_132
 
     bW__ = torch.sum(bW_, dim=1, keepdim=True)
+    bW___ = bW___.to(torch.int32)
     bW___ = bW__.reshape(N,qbits,-1).permute(2,1,0).contiguous()
-    print(bW___.dtype)
+
     return scale_, bW___, binary_shape, offset_
 
 def pack_intweight(unpacked_qweight, interleave, kstride):
@@ -195,7 +196,7 @@ class WQLinear(nn.Module):
                     self.w_bit,
                     out_features
                 ),
-                dtype=torch.int64,
+                dtype=torch.int32,
                 device=dev,
             ),
         )    
