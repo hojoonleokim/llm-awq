@@ -134,15 +134,17 @@ class Quantizer(nn.Module):
         return torch.all(self.scale != 0)
 
 
-def compress(data_, qbits, group_size=128,in_ch_wise=False, perchannel=True, sym=False):
+
+def compress(data_, in_ch_wise=False, **kwargs):
     data_shape = data_.shape
     group_size = -1
-
+    if 'group_size' in kwargs:
+        group_size = kwargs.pop('group_size')
     out_ch = data_shape[0]
     in_ch = data_shape[1]
 
     quant = Quantizer()
-    quant.configure(qbits=qbits,perchannel=perchannel,sym=sym)
+    quant.configure(**kwargs)
     if in_ch_wise == False:
         data = data_
         if group_size > 0:
@@ -162,7 +164,7 @@ def compress(data_, qbits, group_size=128,in_ch_wise=False, perchannel=True, sym
         quant.scale = quant.scale.reshape([in_ch, -1, 1])
         quant.zero  = quant.zero.reshape([in_ch, -1, 1])
 
-    return quant.scale, quant.zero, quant_data, quant_data.shape
+        return quant.scale, quant.zero, quant_data, quant_data.shape
 
 def scale_activations(module):
     param = next(module.parameters())
@@ -302,7 +304,7 @@ def real_quantize_model_weight(model, w_bit, q_config, init_only=False):
 
                 module.cuda()
 
-                scales, zeros,data,binary_size = compress(module.weight.data,in_ch_wise=False, qbits=w_bit, group_size=128, perchannel=True, sym=False)
+                scales, zeros, data,binary_size = compress(module.weight.data,in_ch_wise=False, qbits=w_bit, group_size=q_config["q_group_size"], perchannel=True, sym=False)
 
                 q_linear = WQLinear.from_linear(
                     module, w_bit, q_config["q_group_size"],data, False, scales, zeros
