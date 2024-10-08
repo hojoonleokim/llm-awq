@@ -223,7 +223,7 @@ class WQLinear(nn.Module):
         # need scales and zeros info for real quantization
 
 
-        print("2@ ",awq_linear.scales.shape,awq_linear.scaled_zeros.shape,awq_linear.qweight.shape )
+        print("2@ ",data.shape,zeros.shape,scales.shape )
 
         alpha, binary, binary_shape, offset = convert_bcq_format(
             scales, zeros, data, qbits=w_bit,
