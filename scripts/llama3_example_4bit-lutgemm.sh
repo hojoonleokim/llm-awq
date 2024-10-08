@@ -1,6 +1,9 @@
 MODEL=Phi-3-medium-4k-instruct
 MODEL=Meta-Llama-3-8B-Instruct
 
+MODEL=Phi-3-medium-4k-instruct
+MODEL=Meta-Llama-3-8B-Instruct
+
 # generate real quantized weights (w3)
 python -m awq.entry --model_path ../models/$MODEL \
     --w_bit 4 --q_group_size 128 \
