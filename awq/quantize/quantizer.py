@@ -150,6 +150,7 @@ def real_quantize_model_weight(model, w_bit, q_config, init_only=False):
                 module.weight.data, scales, zeros = pseudo_quantize_tensor(
                     module.weight.data, n_bit=w_bit, get_scale_zp=True, **q_config
                 )
+                print(module.weight.data.shape,scales.shape,zeros.shape)
                 # scales = scales.t().contiguous()
                 # zeros = zeros.t().contiguous()
                 q_linear = WQLinear.from_linear(
