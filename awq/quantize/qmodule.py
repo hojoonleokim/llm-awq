@@ -168,9 +168,8 @@ class WQLinear(nn.Module):
             "q_bias",
             torch.zeros(
                 (
-                    out_features,
-                    in_features // group_size,
-                    1
+                    in_features//128,
+                    out_features
                 ),
                 dtype=torch.float32,
                 device=dev,
@@ -180,9 +179,9 @@ class WQLinear(nn.Module):
             "alpha",
             torch.zeros(
                 (
-                    out_features,
-                    in_features // group_size,
-                    self.w_bit
+                    in_features//128,
+                    self.w_bit,
+                    out_features
                 ),
                 dtype=torch.float32,
                 device=dev,
@@ -192,7 +191,9 @@ class WQLinear(nn.Module):
             "binary",
             torch.zeros(
                 (
-                    out_features*in_features*self.w_bit//8
+                    in_features//32,
+                    self.w_bit,
+                    out_features
                 ),
                 dtype=torch.int32,
                 device=dev,
