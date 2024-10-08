@@ -59,7 +59,7 @@ def calculate_zeros_width(in_features, group_size=128, pack_num=8):
     base_width = make_divisible(in_features // group_size, pack_num)
     base_width = make_divisible(base_width, size_multiplier) * size_multiplier
     return base_width
-def convert_bcq_format( scale, zero, quant_data, qbits, do_packing=False, in_ch_wise=False):
+def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_wise=False):
     global PACKER
 
     zero   = scale * zero
@@ -68,17 +68,28 @@ def convert_bcq_format( scale, zero, quant_data, qbits, do_packing=False, in_ch_
     scale  = torch.matmul(scale, upack)
 
     offset = scale.sum(-1).unsqueeze(-1) - zero
-
-    binary = torch.zeros(list(quant_data.shape) + [qbits])
+    offset= offset.reshape(offset.shape[0],-1)
+    binary = torch.zeros(list(quant_data.shape) + [qbits],dtype =torch.int32)
     binary_shape = binary.shape
+    
+    quant_data = quant_data.to(torch.int)
     for i in range(qbits):
-        binary[:, :, :, i] = ((quant_data >> i) & 1) * 2.0 - 1.0
+        binary[:, :, i] = ((quant_data >> i) & 1) # O I B
 
-    if do_packing == True:
-        binary, binary_shape = PACKER.pack(binary)
-        binary = binary.to(quant_data.device)
-    #print(binary)
-    return scale, binary, binary_shape, offset
+    N = binary.shape[0] #output
+
+    scale_ = scale.permute(1,2,0).contiguous() # G B O
+    binary_ = binary.permute(0,2,1).reshape(-1,32).contiguous().to(torch.int64).to(torch.device('cuda'))
+    offset_ = offset.permute(1,0).contiguous() # G O
+
+    matrix_132 = torch.tensor([1<<i for i in range(32)],dtype=torch.int64,device= "cuda")
+
+    bW_ = binary_*matrix_132
+
+    bW__ = torch.sum(bW_, dim=1, keepdim=True)
+    bW___ = bW__.reshape(N,qbits,-1).permute(2,1,0).to(torch.int32).contiguous()
+    
+    return scale_, bW___, binary_shape, offset_
 
 def pack_intweight(unpacked_qweight, interleave, kstride):
     # unpacked_qweight: [N, K]
