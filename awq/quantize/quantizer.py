@@ -164,7 +164,7 @@ def compress(data_, in_ch_wise=False, **kwargs):
         quant.scale = quant.scale.reshape([in_ch, -1, 1])
         quant.zero  = quant.zero.reshape([in_ch, -1, 1])
 
-        return quant.scale, quant.zero, quant_data, quant_data.shape
+    return quant.scale, quant.zero, quant_data, quant_data.shape
 
 def scale_activations(module):
     param = next(module.parameters())
