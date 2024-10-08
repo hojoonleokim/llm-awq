@@ -260,7 +260,7 @@ class WQLinear(nn.Module):
         assert scales is not None and zeros is not None
 
         awq_linear.scaled_zeros = zeros.contiguous().reshape([zeros.shape[0], zeros.shape[1], 1])
-        print("1@ ",scales.size()," ",zeros.size())
+        #print("1@ ",scales.size()," ",zeros.size())
         
         scale_zeros = zeros * scales
 
@@ -273,7 +273,7 @@ class WQLinear(nn.Module):
             dtype=torch.float16,
             device=scales.device,
         )
-        print("3@",qscales.shape)
+        #print("3@",qscales.shape)
         qscales[:, : scales.shape[1]] = scales
         # awq_linear.scales = scales.clone().half()
         awq_linear.scales = qscales.contiguous().reshape([qscales.shape[0], qscales.shape[1], 1])
