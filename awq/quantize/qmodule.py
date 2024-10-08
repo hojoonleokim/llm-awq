@@ -207,7 +207,7 @@ class WQLinear(nn.Module):
 
     @classmethod
     def from_linear(
-        cls, linear, w_bit, group_size, init_only=False, scales=None, zeros=None
+        cls, linear, w_bit, group_size,data, init_only=False, scales=None, zeros=None
     ):
         awq_linear = cls(
             w_bit,
@@ -226,7 +226,7 @@ class WQLinear(nn.Module):
         print("2@ ",awq_linear.scales.shape,awq_linear.scaled_zeros.shape,awq_linear.qweight.shape )
 
         alpha, binary, binary_shape, offset = convert_bcq_format(
-            scales, zeros, linear.weight.data, qbits=w_bit,
+            scales, zeros, data, qbits=w_bit,
             do_packing=True, in_ch_wise=False)
 
         awq_linear.binary = binary

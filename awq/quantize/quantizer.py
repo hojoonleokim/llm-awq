@@ -302,10 +302,10 @@ def real_quantize_model_weight(model, w_bit, q_config, init_only=False):
 
                 module.cuda()
 
-                scales, zeros,module.weight.data,binary_size = compress(module.weight.data,in_ch_wise=False, qbits=w_bit, group_size=128, perchannel=True, sym=False)
+                scales, zeros,data,binary_size = compress(module.weight.data,in_ch_wise=False, qbits=w_bit, group_size=128, perchannel=True, sym=False)
 
                 q_linear = WQLinear.from_linear(
-                    module, w_bit, q_config["q_group_size"], False, scales, zeros
+                    module, w_bit, q_config["q_group_size"],data, False, scales, zeros
                 )
                 module.cpu()
                 q_linear.to(next(layer.parameters()).device)
