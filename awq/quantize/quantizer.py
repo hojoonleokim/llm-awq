@@ -134,16 +134,15 @@ class Quantizer(nn.Module):
         return torch.all(self.scale != 0)
 
 
-def compress(data_,in_ch_wise=False, **kwargs):
+def compress(data_, qbits, group_size=128,in_ch_wise=False, perchannel=True, sym=False):
     data_shape = data_.shape
     group_size = -1
-    if 'group_size' in kwargs:
-        group_size = kwargs.pop('group_size')
+
     out_ch = data_shape[0]
     in_ch = data_shape[1]
 
     quant = Quantizer()
-    quant.configure(**kwargs)
+    quant.configure(qbits=qbits,perchannel=perchannel,sym=sym)
     if in_ch_wise == False:
         data = data_
         if group_size > 0:
@@ -303,7 +302,7 @@ def real_quantize_model_weight(model, w_bit, q_config, init_only=False):
 
                 module.cuda()
 
-                module.weight.data, scales, zeros = compress(module.weight.data,in_ch_wise=False, qbits=3, group_size=128, perchannel=True, sym=False)
+                module.weight.data, scales, zeros = compress(module.weight.data,in_ch_wise=False, qbits=w_bit, group_size=128, perchannel=True, sym=False)
 
                 q_linear = WQLinear.from_linear(
                     module, w_bit, q_config["q_group_size"], False, scales, zeros
