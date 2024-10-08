@@ -194,7 +194,7 @@ class WQLinear(nn.Module):
                 (
                     out_features*in_features*self.w_bit//8
                 ),
-                dtype=torch.int8,
+                dtype=torch.int32,
                 device=dev,
             ),
         )    
