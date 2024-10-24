@@ -38,9 +38,7 @@ def get_blocks(model):
     elif "bigcode" in str(model.__class__).lower():
         layers = model.transformer.h
     elif "neox" in str(model.__class__).lower():
-        layers = model.gpt_neox.layers
-    elif "phi" in str(model.__class__).lower():
-        layers = model.model.layers         
+        layers = model.gpt_neox.layers        
     else:
         raise NotImplementedError(type(model))
     return layers
@@ -74,9 +72,7 @@ def move_embed(model, device):
     elif "neox" in str(model.__class__).lower():
         model.gpt_neox.embed_in = model.gpt_neox.embed_in.to(device)
         model.gpt_neox.emb_dropout = model.gpt_neox.emb_dropout.to(device)
-        model.embed_out = model.embed_out.to(device)
-    elif "phi" in str(model.__class__).lower():
-        model.model.embed_tokens = model.model.embed_tokens.to(device)        
+        model.embed_out = model.embed_out.to(device)      
     else:
         raise NotImplementedError(type(model))
 
