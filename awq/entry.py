@@ -160,7 +160,7 @@ def build_model_and_enc(model_path):
         kwargs = {"torch_dtype": torch.float16, "low_cpu_mem_usage": True}
         if not vila_10_quant_mode:
             model = AutoModelForCausalLM.from_pretrained(
-                model_path, config=config, trust_remote_code=True, **kwargs, offload_folder='/'
+                model_path, config=config, trust_remote_code=True, **kwargs,
             )
 
         model.eval()
@@ -238,7 +238,7 @@ def build_model_and_enc(model_path):
             ],
             **kwargs,
         )
-        model = dispatch_model(model, device_map=device_map,offload_dir='/')
+        model = dispatch_model(model, device_map=device_map,offload_dir='/home/hojoon/')
 
     return model, enc
 
