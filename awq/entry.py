@@ -236,7 +236,7 @@ def build_model_and_enc(model_path):
                 "MPTBlock",
                 "DecoderLayer",
             ],
-            offload_folder='/'
+            offload_folder='/',
             **kwargs,
         )
         model = dispatch_model(model, device_map=device_map)
