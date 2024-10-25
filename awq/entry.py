@@ -237,9 +237,8 @@ def build_model_and_enc(model_path):
                 "DecoderLayer",
             ],
             **kwargs,
-            offload_dir = '/'
         )
-        model = dispatch_model(model, device_map=device_map)
+        model = dispatch_model(model, device_map=device_map,offload_dir = '/home/hojoon/tmp')
 
     return model, enc
 
