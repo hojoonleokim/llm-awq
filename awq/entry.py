@@ -47,7 +47,7 @@ parser.add_argument(
     help="automatically set parallel and batch_size",
 )
 # quantization config
-parser.add_argument("--w_bit", type=str, default=None)
+parser.add_argument("--w_bit", type=int, default=None)
 parser.add_argument("--q_group_size", type=int, default=-1)
 parser.add_argument("--no_zero_point", action="store_true", help="disable zero_point")
 parser.add_argument("--q_backend", type=str, default="fake", choices=["fake", "real"])
