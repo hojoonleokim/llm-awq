@@ -231,7 +231,7 @@ def build_model_and_enc(model_path):
             ],
             **kwargs,
         )
-        model = dispatch_model(model, device_map=device_map)
+        model = dispatch_model(model, device_map=device_map,offload_dir="/home/hojoon")
 
     return model, enc
 
