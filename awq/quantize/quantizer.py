@@ -265,17 +265,17 @@ def pseudo_quantize_model_weight(
     q_config,
 ):
     from .pre_quant import get_blocks, get_named_linears
-    bits = torch.load(w_bit)
+    #bits = torch.load(w_bit)
     layers = get_blocks(model)
-
+    bit = w_bit
     for i in tqdm(range(len(layers)), desc="pseudo weight quantization..."):
         #if(i in bits): w_bit = 4
         #else: w_bit = 3
         named_linears = get_named_linears(layers[i])
-        if(i not in bits): bits[i]=[]
+        #if(i not in bits): bits[i]=[]
         for n, m in named_linears.items():
-            if(n in bits[i]): bit = 4
-            else: bit = 3        
+            #if(n in bits[i]): bit = 4
+            #else: bit = 3        
             print(i,"#",n,"#",m,bit)
             m.cuda()
             m.weight.data = pseudo_quantize_tensor(
