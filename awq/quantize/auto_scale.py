@@ -504,6 +504,8 @@ def apply_scale(module, scales_list, input_feat_dict=None):
             new_module = ScaledActivation(prev_op, scales)
             set_op_by_name(module, prev_op_name, new_module)
             scale_gelu_fc(prev_op, layers[0], scales)
+        elif "rmsnorm" in str(prev_op.__class__).lower():
+            scale_ln_fcs(prev_op, layers, scales)            
         else:
             raise NotImplementedError(f"prev_op {type(prev_op)} not supported yet!")
 
