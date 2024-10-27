@@ -150,7 +150,7 @@ def run_awq(
     bits = torch.load(w_bit)
     # solve layer by layer
     for i in tqdm.tqdm(range(len(layers)), desc="Running AWQ..."):
-        if i in bits : w_bit = 4
+        if i < len(layers)/2: w_bit = 4
         else : w_bit = 3
         print(i,w_bit)
         layer = layers[i]
