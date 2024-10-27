@@ -6,7 +6,7 @@ from transformers.models.bloom.modeling_bloom import BloomBlock, BloomGelu
 from transformers.models.opt.modeling_opt import OPTDecoderLayer
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer, LlamaRMSNorm
 from transformers.activations import GELUActivation
-#from transformers.models.phi3.modeling_phi3 import Phi3RMSNorm
+from transformers.models.phi3.modeling_phi3 import Phi3RMSNorm
 
 from .qmodule import ScaledActivation
 from ..utils.module import get_op_by_name, get_op_name, set_op_by_name
@@ -440,7 +440,7 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
                 inp=input_feat["mlp.dense_4h_to_h"],
             )
         )
-    #elif "phi" in str(module.__class__).lower():
+    elif "phi" in str(module.__class__).lower():
         # attention input
         scales_list.append(
             _auto_get_scale(
