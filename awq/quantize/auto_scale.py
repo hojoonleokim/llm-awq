@@ -229,6 +229,7 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
                 kwargs=module_kwargs,
             )
         )
+        print("scale qkv",bit)
         # attn out
         # Please refer to https://github.com/mit-han-lab/llm-awq/pull/67#issue-1850622696
         if module.self_attn.v_proj.weight.shape == module.self_attn.o_proj.weight.shape:
@@ -242,6 +243,7 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
                     bit = bit,
                 )
             )
+        print("scale o",bit)
         # fc1
         if "mlp.gate_up_proj" in w_bit: bit = 4
         else: bit = 3        
@@ -254,6 +256,7 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
                 module2inspect=module.mlp,
             )
         )
+        print("scale gate up",bit)
         # fc2
         if "mlp.down_proj" in w_bit: bit = 4
         else: bit = 3        
@@ -265,6 +268,7 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
                 bit = bit,
             )
         )
+        print("scale down",bit)
 
     elif isinstance(module, BloomBlock):
         # attention input

@@ -73,6 +73,7 @@ def auto_clip_block(module, w_bit, q_config, input_feat):
     for name,m in named_linears.items():
         if(m in w_bit): bit = 4
         else: bit = 3    
+        print("clip",bit)
         # due to qk bmm, it is hard to clip precisely
         if any([_ in name for _ in ["q_", "k_", "query", "key", "Wqkv"]]):
             continue
