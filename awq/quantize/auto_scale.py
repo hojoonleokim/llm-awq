@@ -6,7 +6,7 @@ from transformers.models.bloom.modeling_bloom import BloomBlock, BloomGelu
 from transformers.models.opt.modeling_opt import OPTDecoderLayer
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer, LlamaRMSNorm
 from transformers.activations import GELUActivation
-
+from transformers.models.phi3.modeling_phi3 import Phi3RMSNorm
 from .qmodule import ScaledActivation
 from ..utils.module import get_op_by_name, get_op_name, set_op_by_name
 
@@ -456,44 +456,62 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
                 inp=input_feat["mlp.dense_4h_to_h"],
             )
         )
-
+    elif "phi" in str(module.__class__).lower():
         # attention input
+        if "self_attn.qkv_proj" in w_bit: bit = 4
+        else: bit = 3
+
         scales_list.append(
             _auto_get_scale(
                 prev_op=module.input_layernorm,
                 layers=[module.self_attn.qkv_proj],
                 inp=input_feat["self_attn.qkv_proj"],
+                bit = bit,
                 module2inspect=module.self_attn,
                 kwargs=module_kwargs,
             )
         )
+        print("scale qkv",bit)
+
         # attn out
         # Please refer to https://github.com/mit-han-lab/llm-awq/pull/67#issue-1850622696
         if module.self_attn.qkv_proj.weight.shape == module.self_attn.o_proj.weight.shape:
+            if "self_attn.o_proj" in w_bit: bit = 4
+            else: bit = 3
             scales_list.append(
                 _auto_get_scale(
                     prev_op=module.self_attn.qkv_proj,
                     layers=[module.self_attn.o_proj],
                     inp=input_feat["self_attn.o_proj"],
+                    bit = bit,
                 )
             )
+            print("scale o",bit)
         # fc1
+        if "mlp.gate_up_proj" in w_bit: bit = 4
+        else: bit = 3 
         scales_list.append(
             _auto_get_scale(
                 prev_op=module.post_attention_layernorm,
                 layers=[module.mlp.gate_up_proj],
                 inp=input_feat["mlp.gate_up_proj"],
+                bit = bit,
                 module2inspect=module.mlp,
             )
         )
+        print("scale gate up",bit)
         # fc2
+        if "mlp.down_proj" in w_bit: bit = 4
+        else: bit = 3  
         scales_list.append(
             _auto_get_scale(
                 prev_op=module.mlp.gate_up_proj,
                 layers=[module.mlp.down_proj],
                 inp=input_feat["mlp.down_proj"],
+                bit = bit,
             )
         )
+        print("scale down",bit)
     else:
         raise NotImplementedError(f"{type(module)} not supported yet!")
 
