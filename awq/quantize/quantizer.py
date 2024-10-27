@@ -274,9 +274,9 @@ def pseudo_quantize_model_weight(
         named_linears = get_named_linears(layers[i])
         if(i not in bits): bits[i]=[]
         for n, m in named_linears.items():
-            print(i,"#",n,"#",m)
             if(n in bits[i]): bit = 4
             else: bit = 3        
+            print(i,"#",n,"#",m,bit)
             m.cuda()
             m.weight.data = pseudo_quantize_tensor(
                 m.weight.data, n_bit=bit, **q_config
