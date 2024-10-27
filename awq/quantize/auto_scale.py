@@ -440,6 +440,45 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
                 inp=input_feat["mlp.dense_4h_to_h"],
             )
         )
+    elif "phi" in str(module.__class__).lower():
+        # attention input
+        scales_list.append(
+            _auto_get_scale(
+                prev_op=module.input_layernorm,
+                layers=[module.self_attn.qkv_proj],
+                inp=input_feat["self_attn.qkv_proj"],
+                module2inspect=module.self_attn,
+                kwargs=module_kwargs,
+            )
+        )
+        # attn out
+        # Please refer to https://github.com/mit-han-lab/llm-awq/pull/67#issue-1850622696
+        if module.self_attn.qkv_proj.weight.shape == module.self_attn.o_proj.weight.shape:
+            scales_list.append(
+                _auto_get_scale(
+                    prev_op=module.self_attn.qkv_proj,
+                    layers=[module.self_attn.o_proj],
+                    inp=input_feat["self_attn.o_proj"],
+                )
+            )
+        # fc1
+        scales_list.append(
+            _auto_get_scale(
+                prev_op=module.post_attention_layernorm,
+                layers=[module.mlp.gate_up_proj],
+                inp=input_feat["mlp.gate_up_proj"],
+                module2inspect=module.mlp,
+            )
+        )
+        # fc2
+        scales_list.append(
+            _auto_get_scale(
+                prev_op=module.mlp.gate_up_proj,
+                layers=[module.mlp.down_proj],
+                inp=input_feat["mlp.down_proj"],
+            )
+        )
+
     else:
         raise NotImplementedError(f"{type(module)} not supported yet!")
 
