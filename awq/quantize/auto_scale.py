@@ -243,7 +243,7 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
                     bit = bit,
                 )
             )
-        print("scale o",bit)
+            print("scale o",bit)
         # fc1
         if "mlp.gate_up_proj" in w_bit: bit = 4
         else: bit = 3        
