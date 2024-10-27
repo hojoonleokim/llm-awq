@@ -70,6 +70,8 @@ def auto_clip_block(module, w_bit, q_config, input_feat):
     }
 
     clip_list = []
+    print("FOR CLIP",w_bit)
+    print(named_linears.items())
     for name,m in named_linears.items():
         if(m in w_bit): bit = 4
         else: bit = 3    
