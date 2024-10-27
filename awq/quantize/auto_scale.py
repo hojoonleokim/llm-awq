@@ -255,7 +255,7 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
             )
         )
         # fc2
-        if "mlp.down_proj" in bit: w_bit = 4
+        if "mlp.down_proj" in w_bit: bit = 4
         else: bit = 3        
         scales_list.append(
             _auto_get_scale(

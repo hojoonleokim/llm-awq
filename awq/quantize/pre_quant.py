@@ -200,7 +200,7 @@ def run_awq(
         if mse_range:
             clip_list = auto_clip_block(
                 layer,
-                bit=bits[i],
+                w_bit=bits[i],
                 q_config=q_config,
                 input_feat=input_feat,
             )
