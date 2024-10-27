@@ -89,23 +89,24 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
     # firstly, get the weight quantize function
     if w_bit is not None:
 
-        def w_quantize_func(p):
+        def w_quantize_func(p,bit):
             return pseudo_quantize_tensor(
                 p,
-                n_bit=w_bit,
+                n_bit=bit,
                 **q_config,
             ).detach()
 
     else:
 
         def w_quantize_func(p):
+            print("NOT HERE")
             return p
 
     if "use_cache" in module_kwargs:
         module_kwargs.pop("use_cache")
 
     # find the best scale ratio
-    def _search_module_scale(block, linears2scale: list, x, kwargs={}):
+    def _search_module_scale(block, linears2scale: list, x, bit, kwargs={}):
         # w: co, ci
         # x: n, ci
         x = x.to(next(block.parameters()).device)
@@ -122,7 +123,6 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
 
         n_grid = 20
         history = []
-        print("!!",linears2scale)
         org_sd = {k: v.cpu() for k, v in block.state_dict().items()}
         for ratio in range(n_grid):
             ratio = ratio * 1 / n_grid
@@ -130,7 +130,7 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
             scales = scales / (scales.max() * scales.min()).sqrt()
             for fc in linears2scale:
                 fc.weight.mul_(scales.view(1, -1).to(fc.weight.device))
-                fc.weight.data = w_quantize_func(fc.weight.data) / (scales.view(1, -1))
+                fc.weight.data = w_quantize_func(fc.weight.data,bit) / (scales.view(1, -1))
             out = block(x, **kwargs)
             if isinstance(out, tuple):
                 out = out[0]
@@ -154,13 +154,13 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
         assert torch.isnan(best_scales).sum() == 0, best_scales
         return best_scales.detach()
 
-    def _auto_get_scale(prev_op, layers, inp, module2inspect=None, kwargs={}):
+    def _auto_get_scale(prev_op, layers, inp, bit, module2inspect=None, kwargs={}):
         # module2inspect: if given, we will check the output diff of this module instead of layers
         if module2inspect is None:
             assert len(layers) == 1
             module2inspect = layers[0]
 
-        scales = _search_module_scale(module2inspect, layers, inp, kwargs)
+        scales = _search_module_scale(module2inspect, layers, inp, bit, kwargs)
         scales = scales.detach().cpu()
         # prev_op_name, [layer_name], scale
         return (
@@ -213,6 +213,8 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
 
     elif isinstance(module, LlamaDecoderLayer):
         # attention input
+        if "self_attn.qkv_proj" in w_bit: bit = 4
+        else: bit = 3
         scales_list.append(
             _auto_get_scale(
                 prev_op=module.input_layernorm,
@@ -222,6 +224,7 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
                     module.self_attn.v_proj,
                 ],
                 inp=input_feat["self_attn.q_proj"],
+                bit = bit,
                 module2inspect=module.self_attn,
                 kwargs=module_kwargs,
             )
@@ -229,28 +232,37 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
         # attn out
         # Please refer to https://github.com/mit-han-lab/llm-awq/pull/67#issue-1850622696
         if module.self_attn.v_proj.weight.shape == module.self_attn.o_proj.weight.shape:
+            if "self_attn.o_proj" in w_bit: bit = 4
+            else: bit = 3
             scales_list.append(
                 _auto_get_scale(
                     prev_op=module.self_attn.v_proj,
                     layers=[module.self_attn.o_proj],
                     inp=input_feat["self_attn.o_proj"],
+                    bit = bit,
                 )
             )
         # fc1
+        if "mlp.gate_up_proj" in w_bit: bit = 4
+        else: bit = 3        
         scales_list.append(
             _auto_get_scale(
                 prev_op=module.post_attention_layernorm,
                 layers=[module.mlp.gate_proj, module.mlp.up_proj],
                 inp=input_feat["mlp.gate_proj"],
+                bit = bit,
                 module2inspect=module.mlp,
             )
         )
         # fc2
+        if "mlp.down_proj" in bit: w_bit = 4
+        else: bit = 3        
         scales_list.append(
             _auto_get_scale(
                 prev_op=module.mlp.up_proj,
                 layers=[module.mlp.down_proj],
                 inp=input_feat["mlp.down_proj"],
+                bit = bit,
             )
         )
 

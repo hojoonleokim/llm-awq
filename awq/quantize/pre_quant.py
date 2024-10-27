@@ -143,7 +143,7 @@ def run_awq(
         "scale": [],
         "clip": [],
     }
-    #bits = torch.load(w_bit)
+    bits = torch.load(w_bit)
     # solve layer by layer
     for i in tqdm.tqdm(range(len(layers)), desc="Running AWQ..."):
         #if(i in bits): w_bit = 4
@@ -183,7 +183,7 @@ def run_awq(
             scales_list = auto_scale_block(
                 layer,
                 layer_kwargs,
-                w_bit=w_bit,
+                w_bit=bits[i],
                 q_config=q_config,
                 input_feat=input_feat,
             )
@@ -200,7 +200,7 @@ def run_awq(
         if mse_range:
             clip_list = auto_clip_block(
                 layer,
-                w_bit=w_bit,
+                bit=bits[i],
                 q_config=q_config,
                 input_feat=input_feat,
             )

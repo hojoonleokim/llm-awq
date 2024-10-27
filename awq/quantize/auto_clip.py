@@ -64,13 +64,15 @@ def auto_clip_layer(
 
 
 @torch.no_grad()
-def auto_clip_block(module, w_bit, q_config, input_feat):
+def auto_clip_block(module, bit, q_config, input_feat):
     named_linears = {
         name: m for name, m in module.named_modules() if isinstance(m, nn.Linear)
     }
 
     clip_list = []
-    for name in named_linears:
+    for name,m in named_linears.items():
+        if(m in bit): w_bit = 4
+        else: w_bit = 3    
         # due to qk bmm, it is hard to clip precisely
         if any([_ in name for _ in ["q_", "k_", "query", "key", "Wqkv"]]):
             continue
