@@ -180,7 +180,7 @@ def run_awq(
 
         # Clear GPU memory
         torch.cuda.empty_cache()
-
+        if(i not in bits) : bits[i]=[]
         if (
             auto_scale
         ):  # if it applies, we should also modify the input_feat with scales
