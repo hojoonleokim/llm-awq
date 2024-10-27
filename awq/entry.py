@@ -166,7 +166,7 @@ def build_model_and_enc(model_path):
         model.eval()
 
         if args.run_awq:
-            assert args.dump_awq, "Please save the awq results with --dump_awq"
+            #assert args.dump_awq, "Please save the awq results with --dump_awq"
 
             awq_results = run_awq(
                 model,
