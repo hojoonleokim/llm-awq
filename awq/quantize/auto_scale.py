@@ -172,6 +172,7 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
     scales_list = []  # return the searched scales
 
     if isinstance(module, OPTDecoderLayer):
+        print("ERROR")
         # attention input
         scales_list.append(
             _auto_get_scale(
