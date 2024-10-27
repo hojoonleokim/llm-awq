@@ -147,9 +147,11 @@ def run_awq(
         "scale": [],
         "clip": [],
     }
-
+    bits = torch.load(w_bit)
     # solve layer by layer
     for i in tqdm.tqdm(range(len(layers)), desc="Running AWQ..."):
+        if i in bits : w_bit = 4
+        else : w_bit = 3
         layer = layers[i]
         layer = layer.cuda()
         named_linears = get_named_linears(layer)
