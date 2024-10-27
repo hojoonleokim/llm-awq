@@ -129,6 +129,7 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
             scales = x_max.pow(ratio).clamp(min=1e-4).view(-1)
             scales = scales / (scales.max() * scales.min()).sqrt()
             for fc in linears2scale:
+                print(fc)
                 fc.weight.mul_(scales.view(1, -1).to(fc.weight.device))
                 fc.weight.data = w_quantize_func(fc.weight.data) / (scales.view(1, -1))
             out = block(x, **kwargs)
