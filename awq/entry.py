@@ -252,10 +252,11 @@ def main():
     if args.tasks is not None:
         # https://github.com/IST-DASLab/gptq/blob/2d65066eeb06a5c9ff5184d8cebdf33662c67faf/llama.py#L206
         if args.tasks == "wikitext":
-            testenc = load_dataset("mit-han-lab/pile-val-backup", split='validation')
+            testenc = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
             testenc = enc("\n\n".join(testenc["text"]), return_tensors="pt")
             model.seqlen = 2048
             testenc = testenc.input_ids.to(model.device)
+            print(testenc.shape)
             nsamples = testenc.numel() // model.seqlen
             model = model.eval()
             nlls = []
