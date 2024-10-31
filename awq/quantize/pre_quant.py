@@ -39,6 +39,8 @@ def get_blocks(model):
         layers = model.transformer.h
     elif "neox" in str(model.__class__).lower():
         layers = model.gpt_neox.layers
+    elif "phi" in str(model.__class__).lower():
+        layers = model.model.layers     
     else:
         raise NotImplementedError(type(model))
     return layers
@@ -73,6 +75,8 @@ def move_embed(model, device):
         model.gpt_neox.embed_in = model.gpt_neox.embed_in.to(device)
         model.gpt_neox.emb_dropout = model.gpt_neox.emb_dropout.to(device)
         model.embed_out = model.embed_out.to(device)
+    elif "phi" in str(model.__class__).lower():
+        model.model.embed_tokens = model.model.embed_tokens.to(device)    
     else:
         raise NotImplementedError(type(model))
 
@@ -81,8 +85,9 @@ def move_embed(model, device):
 def run_awq(
     model,
     enc,
-    bit,
+    w_bit,
     q_config,
+    layer_idx,
     n_samples=512,
     seqlen=512,
     auto_scale=True,
@@ -145,11 +150,10 @@ def run_awq(
     }
 
     # solve layer by layer
-    w_bit = 3
     for i in tqdm.tqdm(range(len(layers)), desc="Running AWQ..."):
-        if(i!=bit):
+        if(i!=layer_idx):
             continue
-        print("##############",bit,w_bit)
+        print("##############",layer_idx,w_bit)
         layer = layers[i]
         layer = layer.cuda()
         named_linears = get_named_linears(layer)

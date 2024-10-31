@@ -47,6 +47,7 @@ parser.add_argument(
     help="automatically set parallel and batch_size",
 )
 # quantization config
+parser.add_argument("--layer", type=int, default=None)
 parser.add_argument("--w_bit", type=int, default=None)
 parser.add_argument("--q_group_size", type=int, default=-1)
 parser.add_argument("--no_zero_point", action="store_true", help="disable zero_point")
@@ -169,10 +170,11 @@ def build_model_and_enc(model_path):
             awq_results = run_awq(
                 model,
                 enc,
-                bit=args.w_bit,
+                w_bit=args.w_bit,
                 q_config=q_config,
                 n_samples=128,
                 seqlen=512,
+                layer_idx=args.layer,
             )
             if args.dump_awq:
                 dirpath = os.path.dirname(args.dump_awq)
