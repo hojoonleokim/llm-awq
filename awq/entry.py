@@ -304,30 +304,36 @@ def main():
             nsamples = testenc.numel() // model.seqlen
             model = model.eval()
 
-            for i in tqdm.tqdm(range(nsamples), desc="evaluating..."):
-                batch = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)].to(
-                    model.device
-                )
-                with torch.no_grad():
-                    lm_logits = model(batch).logits
-                    batch = batch.to("cpu")
+            #for i in tqdm.tqdm(range(nsamples), desc="evaluating..."):
+            #    batch = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)].to(
+            #        model.device
+            #    )
+            #    with torch.no_grad():
+            #        lm_logits = model(batch).logits
+            #        batch = batch.to("cpu")
 
-            print(lm_logits.shape,lm_logits)
+            #print(lm_logits.shape,lm_logits)
             del model
 
             model_fp = build_model_fp(args.model_path)
             model_fp.seqlen = 2048
             model_fp = model_fp.eval()
             testenc = testenc.to(model_fp.device)
+            logits_list = []
             for i in tqdm.tqdm(range(nsamples), desc="evaluating..."):
                 batch = testenc[:, (i * model_fp.seqlen) : ((i + 1) * model_fp.seqlen)].to(
                     model_fp.device
                 )
                 with torch.no_grad():
                     lm_logits = model_fp(batch).logits
+                    lm_logits = lm_logits.squeeze(0)
+                    logits_list.append(lm_logits.to("cpu"))
                     batch = batch.to("cpu")
+            all_logits = torch.stack(logits_list)
+            
+            print(all_logits.shape,all_logits)
 
-            print(lm_logits.shape,lm_logits)
+            torch.save(all_logits,args.output_path)
 
 
 if __name__ == "__main__":
