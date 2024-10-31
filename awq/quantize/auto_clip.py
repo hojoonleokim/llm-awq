@@ -84,10 +84,11 @@ def auto_clip_block(module, w_bit, q_config, input_feat):
 
 
 @torch.no_grad()
-def apply_clip(module, clip_list):
+def apply_clip(module, clip_list,layer_idx):
     from ..utils.module import get_op_by_name
 
     for name, max_val in clip_list:
+        print("CLIP",name)
         layer = get_op_by_name(module, name)
         layer.cuda()
         max_val = max_val.to(layer.weight.device)

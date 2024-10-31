@@ -231,7 +231,7 @@ def build_model_and_enc(model_path):
         if args.load_awq:
             print("Loading pre-computed AWQ results from", args.load_awq)
             awq_results = torch.load(args.load_awq, map_location="cpu")
-            apply_awq(model, awq_results)
+            apply_awq(model, awq_results,args.layer)
 
         # weight quantization
         if args.w_bit is not None:
