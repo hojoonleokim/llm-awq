@@ -348,9 +348,10 @@ def main():
 
             if(args.model_path not in data_dict):
                 data_dict[args.model_path]={}
-            if(args.w_bit not in data_dict):
+            if(args.w_bit not in data_dict[args.model_path]):
                 data_dict[args.model_path][args.w_bit]={args.layer:tot_kl}
             else:
+                if(args.layer in data_dict[args.model_path][args.w_bit]): print("SOMETHING WRONG")
                 data_dict[args.model_path][args.w_bit][args.layer]=tot_kl
             print(data_dict)
             torch.save(data_dict, file_path)
