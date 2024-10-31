@@ -295,6 +295,26 @@ def main():
     model, enc = build_model_and_enc(args.model_path)
     model_fp = build_model_fp(args.model_path)
     print("RUNNING",args.model_path,"#",args.w_bit,"#",args.layer)
+
+    data_dict = {}
+    file_path = 'calib_data.pt'
+    if os.path.exists(file_path):
+        try:
+            # 파일 로드
+            loaded_data = torch.load(file_path)
+            
+            # 로드한 데이터가 딕셔너리인지 확인
+            if isinstance(loaded_data, dict):
+                data_dict = loaded_data
+                print(f"LOADED: {data_dict}")
+            else:
+                print("LOADED DATA NOT DICT CREATING NEW.")
+        except Exception as e:
+            print(f"ERR: {e}")
+            print("CREATING NEW.")
+    else:
+        print("NO .pt FILE. CREATING NEW.")
+
     if args.tasks is not None:
         # https://github.com/IST-DASLab/gptq/blob/2d65066eeb06a5c9ff5184d8cebdf33662c67faf/llama.py#L206
         if args.tasks == "wikitext":
@@ -323,6 +343,16 @@ def main():
                     target = torch.softmax(lm_logits_fp, dim=1)
                     print(lm_logits.shape,lm_logits_fp.shape)
                     kl = F.kl_div(input_log, target, reduction='batchmean')
+                    tot_kl += kl[0]
                     print(kl)
+
+            if(args.model_path not in data_dict):
+                data_dict[args.model_path]={}
+            if(args.w_bit not in data_dict):
+                data_dict[args.model_path][args.w_bit]={args.layer:tot_kl}
+            else:
+                data_dict[args.model_path][args.w_bit][args.layer]=tot_kl
+            print(data_dict)
+            torch.save(data_dict, file_path)
 if __name__ == "__main__":
     main()
