@@ -486,6 +486,15 @@ def auto_scale_block(module, module_kwargs, w_bit, q_config, input_feat):
 
 def apply_scale(module, scales_list,layer_idx, input_feat_dict=None):
     for prev_op_name, layer_names, scales in scales_list:
+        parts = prev_op_name.split('.')
+
+        # '#' 부분은 세 번째 요소 (인덱스 2)임
+        index_str = parts[2]  # '3'
+
+        # 문자열을 정수로 변환
+        index = int(index_str)
+        if(index!=layer_idx):
+            continue
         print("SCALE",prev_op_name,layer_names)
         prev_op = get_op_by_name(module, prev_op_name)
         layers = [get_op_by_name(module, name) for name in layer_names]

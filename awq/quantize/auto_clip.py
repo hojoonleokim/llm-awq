@@ -88,6 +88,15 @@ def apply_clip(module, clip_list,layer_idx):
     from ..utils.module import get_op_by_name
 
     for name, max_val in clip_list:
+        parts = name.split('.')
+
+        # '#' 부분은 세 번째 요소 (인덱스 2)임
+        index_str = parts[2]  # '3'
+
+        # 문자열을 정수로 변환
+        index = int(index_str)
+        if(index!=layer_idx):
+            continue
         print("CLIP",name)
         layer = get_op_by_name(module, name)
         layer.cuda()
