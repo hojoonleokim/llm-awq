@@ -145,7 +145,7 @@ def run_awq(
     }
 
     # solve layer by layer
-    w_bit = 4
+    w_bit = 3
     for i in tqdm.tqdm(range(len(layers)), desc="Running AWQ..."):
         if(i!=bit):
             continue
