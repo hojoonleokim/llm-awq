@@ -47,7 +47,7 @@ parser.add_argument(
     help="automatically set parallel and batch_size",
 )
 # quantization config
-parser.add_argument("--w_bit", type=str, default=None)
+parser.add_argument("--w_bit", type=int, default=None)
 parser.add_argument("--q_group_size", type=int, default=-1)
 parser.add_argument("--no_zero_point", action="store_true", help="disable zero_point")
 parser.add_argument("--q_backend", type=str, default="fake", choices=["fake", "real"])
@@ -304,15 +304,15 @@ def main():
             nsamples = testenc.numel() // model.seqlen
             model = model.eval()
 
-            #for i in tqdm.tqdm(range(nsamples), desc="evaluating..."):
-            #    batch = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)].to(
-            #        model.device
-            #    )
-            #    with torch.no_grad():
-            #        lm_logits = model(batch).logits
-            #        batch = batch.to("cpu")
+            for i in tqdm.tqdm(range(nsamples), desc="evaluating..."):
+                batch = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)].to(
+                    model.device
+                )
+                with torch.no_grad():
+                    lm_logits = model(batch).logits
+                    batch = batch.to("cpu")
 
-            #print(lm_logits.shape,lm_logits)
+            print(lm_logits.shape,lm_logits)
             del model
 
             model_fp = build_model_fp(args.model_path)
@@ -327,7 +327,7 @@ def main():
                 with torch.no_grad():
                     lm_logits = model_fp(batch).logits
                     lm_logits = lm_logits.squeeze(0)
-                    logits_list.append(lm_logits.to("cpu"))
+                    logits_list.append(lm_logits)
                     batch = batch.to("cpu")
             all_logits = torch.stack(logits_list)
             
