@@ -343,7 +343,7 @@ def main():
                     target = torch.softmax(lm_logits_fp, dim=1)
                     print(lm_logits.shape,lm_logits_fp.shape)
                     kl = F.kl_div(input_log, target, reduction='batchmean')
-                    tot_kl += kl[0]
+                    tot_kl += kl.item()
                     print(kl)
 
             if(args.model_path not in data_dict):
