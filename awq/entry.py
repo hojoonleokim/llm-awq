@@ -312,9 +312,8 @@ def main():
                 )
                 with torch.no_grad():
                     lm_logits = model(batch).logits
-                    lm_logits = model_fp(batch).logits
-                    
                     lm_logits_fp = model_fp(batch).logits
+                    
                     batch = batch.to("cpu")
                 print(lm_logits.shape,lm_logits_fp.shape)
 
