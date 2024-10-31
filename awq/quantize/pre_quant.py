@@ -81,7 +81,7 @@ def move_embed(model, device):
 def run_awq(
     model,
     enc,
-    w_bit,
+    bit,
     q_config,
     n_samples=512,
     seqlen=512,
@@ -145,7 +145,10 @@ def run_awq(
     }
 
     # solve layer by layer
+    w_bit = 4
     for i in tqdm.tqdm(range(len(layers)), desc="Running AWQ..."):
+        if(i!=bit):
+            continue
         layer = layers[i]
         layer = layer.cuda()
         named_linears = get_named_linears(layer)
