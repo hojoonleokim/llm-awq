@@ -108,11 +108,14 @@ def pseudo_quantize_model_weight(
     model,
     w_bit,
     q_config,
+    layer_idx
 ):
     from .pre_quant import get_blocks, get_named_linears
 
     layers = get_blocks(model)
     for i in tqdm(range(len(layers)), desc="pseudo weight quantization..."):
+        if(i!=layer_idx):
+            continue
         named_linears = get_named_linears(layers[i])
         for n, m in named_linears.items():
             m.cuda()
