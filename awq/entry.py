@@ -318,7 +318,7 @@ def main():
             model_fp = build_model_fp(args.model_path)
             model_fp.seqlen = 2048
             model_fp = model_fp.eval()
-            testenc = testenc.input_ids.to(model_fp.device)
+            testenc = testenc.to(model_fp.device)
             for i in tqdm.tqdm(range(nsamples), desc="evaluating..."):
                 batch = testenc[:, (i * model_fp.seqlen) : ((i + 1) * model_fp.seqlen)].to(
                     model_fp.device
