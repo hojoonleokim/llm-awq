@@ -290,7 +290,6 @@ def main():
 
     # a hack here to auto set model group
     model, enc = build_model_and_enc(args.model_path)
-    model_fp = build_model_fp(args.model_path)
 
     if args.tasks is not None:
         # https://github.com/IST-DASLab/gptq/blob/2d65066eeb06a5c9ff5184d8cebdf33662c67faf/llama.py#L206
@@ -298,7 +297,6 @@ def main():
             testenc = load_dataset("mit-han-lab/pile-val-backup", split="validation")
             testenc = enc("\n\n".join(testenc["text"][:4358]), return_tensors="pt")
             model.seqlen = 2048
-            model_fp.seqlen = 2048
             
             testenc = testenc.input_ids.to(model.device)
             testenc = testenc[:, :289077]
@@ -312,8 +310,13 @@ def main():
                 )
                 with torch.no_grad():
                     lm_logits = model(batch).logits
-            print(lm_logits.shape)
+                    batch = batch.to("cpu")
 
+            print(lm_logits.shape,lm_logits)
+            del model
+
+            model_fp = build_model_fp(args.model_path)
+            model_fp.seqlen = 2048
             model_fp = model_fp.eval()
             testenc = testenc.input_ids.to(model_fp.device)
             for i in tqdm.tqdm(range(nsamples), desc="evaluating..."):
@@ -322,8 +325,9 @@ def main():
                 )
                 with torch.no_grad():
                     lm_logits = model_fp(batch).logits
+                    batch = batch.to("cpu")
 
-            print(lm_logits.shape)
+            print(lm_logits.shape,lm_logits)
 
 
 if __name__ == "__main__":
