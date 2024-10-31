@@ -1,6 +1,7 @@
 from lm_eval import evaluator, tasks
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 import torch
+import torch.nn.functional as F
 import argparse
 import os
 import json
@@ -293,6 +294,7 @@ def main():
     # a hack here to auto set model group
     model, enc = build_model_and_enc(args.model_path)
     model_fp = build_model_fp(args.model_path)
+    print("RUNNING",args.model_path,"#",args.w_bit,"#",args.layer)
     if args.tasks is not None:
         # https://github.com/IST-DASLab/gptq/blob/2d65066eeb06a5c9ff5184d8cebdf33662c67faf/llama.py#L206
         if args.tasks == "wikitext":
@@ -307,7 +309,7 @@ def main():
             nsamples = testenc.numel() // model.seqlen
             model = model.eval()
             model_fp = model_fp.eval()    
-
+            tot_kl=0
             for i in tqdm.tqdm(range(nsamples), desc="evaluating..."):
                 batch = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)].to(
                     model.device
@@ -315,8 +317,12 @@ def main():
                 with torch.no_grad():
                     lm_logits = model(batch).logits
                     lm_logits_fp = model_fp(batch).logits
+                    lm_logits = torch.squeeze(lm_logits)
+                    lm_logits_fp = torch.squeeze(lm_logits_fp)
+                    input_log = torch.log_softmax(lm_logits, dim=1)
+                    target = torch.softmax(lm_logits_fp, dim=1)
                     print(lm_logits.shape,lm_logits_fp.shape)
-
-
+                    kl = F.kl_div(input_log, target, reduction='batchmean')
+                    print(kl)
 if __name__ == "__main__":
     main()
