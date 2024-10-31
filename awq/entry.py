@@ -290,19 +290,21 @@ def main():
 
     # a hack here to auto set model group
     model, enc = build_model_and_enc(args.model_path)
-
+    model_fp = build_model_fp(args.model_path)
     if args.tasks is not None:
         # https://github.com/IST-DASLab/gptq/blob/2d65066eeb06a5c9ff5184d8cebdf33662c67faf/llama.py#L206
         if args.tasks == "wikitext":
             testenc = load_dataset("mit-han-lab/pile-val-backup", split="validation")
             testenc = enc("\n\n".join(testenc["text"][:4358]), return_tensors="pt")
             model.seqlen = 2048
-            
+            model_fp.seqlen = 2048
+        
             testenc = testenc.input_ids.to(model.device)
             testenc = testenc[:, :289077]
             print(testenc.shape)
             nsamples = testenc.numel() // model.seqlen
             model = model.eval()
+            model_fp = model_fp.eval()    
 
             for i in tqdm.tqdm(range(nsamples), desc="evaluating..."):
                 batch = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)].to(
@@ -310,30 +312,12 @@ def main():
                 )
                 with torch.no_grad():
                     lm_logits = model(batch).logits
-                    batch = batch.to("cpu")
-
-            print(lm_logits.shape,lm_logits)
-            del model
-
-            model_fp = build_model_fp(args.model_path)
-            model_fp.seqlen = 2048
-            model_fp = model_fp.eval()
-            testenc = testenc.to(model_fp.device)
-            logits_list = []
-            for i in tqdm.tqdm(range(nsamples), desc="evaluating..."):
-                batch = testenc[:, (i * model_fp.seqlen) : ((i + 1) * model_fp.seqlen)].to(
-                    model_fp.device
-                )
-                with torch.no_grad():
                     lm_logits = model_fp(batch).logits
-                    lm_logits = lm_logits.squeeze(0)
-                    logits_list.append(lm_logits)
+                    
+                    lm_logits_fp = model_fp(batch).logits
                     batch = batch.to("cpu")
-            all_logits = torch.stack(logits_list)
-            
-            print(all_logits.shape,all_logits)
+                print(lm_logits.shape,lm_logits_fp.shape)
 
-            torch.save(all_logits,args.output_path)
 
 
 if __name__ == "__main__":
