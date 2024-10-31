@@ -341,10 +341,10 @@ def main():
                     lm_logits_fp = torch.squeeze(lm_logits_fp)
                     input_log = torch.log_softmax(lm_logits, dim=1)
                     target = torch.softmax(lm_logits_fp, dim=1)
-                    print(lm_logits.shape,lm_logits_fp.shape)
+                    #print(lm_logits.shape,lm_logits_fp.shape)
                     kl = F.kl_div(input_log, target, reduction='batchmean')
                     tot_kl += kl.item()
-                    print(kl)
+                    #print(kl)
 
             if(args.model_path not in data_dict):
                 data_dict[args.model_path]={}
