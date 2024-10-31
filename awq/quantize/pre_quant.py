@@ -149,7 +149,7 @@ def run_awq(
     for i in tqdm.tqdm(range(len(layers)), desc="Running AWQ..."):
         if(i!=bit):
             continue
-        print("##############",bit)
+        print("##############",bit,w_bit)
         layer = layers[i]
         layer = layer.cuda()
         named_linears = get_named_linears(layer)
