@@ -148,6 +148,7 @@ def run_awq(
         "clip": [],
     }
     bit_dict = torch.load(bit)
+    print(bit_dict)
     # solve layer by layer
     for i in tqdm.tqdm(range(len(layers)), desc="Running AWQ..."):
         w_bit = bit_dict[i]
