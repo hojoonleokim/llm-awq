@@ -293,7 +293,7 @@ def main():
 
     # a hack here to auto set model group
     model_3, enc = build_model_and_enc(args.model_path,3,"awq_cache/Meta-Llama-3-8B-Instruct-w3-g128.pt")
-    model_4 = build_model_and_enc(args.model_path,4,"awq_cache/Meta-Llama-3-8B-Instruct-w4-g128.pt")
+    model_4,_ = build_model_and_enc(args.model_path,4,"awq_cache/Meta-Llama-3-8B-Instruct-w4-g128.pt")
     print("RUNNING",args.model_path,"#",args.w_bit,"#",args.layer)
 
     data_dict = {}
