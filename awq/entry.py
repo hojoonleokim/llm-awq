@@ -292,12 +292,12 @@ def main():
         exit()
 
     # a hack here to auto set model group
-    model_3, enc = build_model_and_enc(args.model_path,3,"awq_cache/Meta-Llama-3-8B-Instruct-w3-g128.pt")
-    model_4,_ = build_model_and_enc(args.model_path,3,"awq_cache/Meta-Llama-3-8B-Instruct-w3-g128.pt")
+    model_3, enc = build_model_and_enc(args.model_path,3,"awq_cache/Phi-3-medium-4k-instruct-w3-g128.pt")
+    model_4,_ = build_model_and_enc(args.model_path,4,"awq_cache/Phi-3-medium-4k-instruct-w4-g128.pt")
     print("RUNNING",args.model_path,"#",args.w_bit,"#",args.layer)
 
     data_dict = {}
-    file_path = 'calib_data_v3.pt'
+    file_path = 'calib_data_v2.pt'
     if os.path.exists(file_path):
         try:
             # 파일 로드
