@@ -131,7 +131,7 @@ def build_model_fp(model_path):
     return model
 
 
-def build_model_and_enc(model_path):
+def build_model_and_enc(model_path,w_bit,load_awq):
 
     print(f"* Building model {model_path}")
 
@@ -228,18 +228,18 @@ def build_model_and_enc(model_path):
 
             exit(0)
 
-        if args.load_awq:
-            print("Loading pre-computed AWQ results from", args.load_awq)
-            awq_results = torch.load(args.load_awq, map_location="cpu")
+        if load_awq:
+            print("Loading pre-computed AWQ results from", load_awq)
+            awq_results = torch.load(load_awq, map_location="cpu")
             apply_awq(model, awq_results,args.layer)
 
         # weight quantization
-        if args.w_bit is not None:
+        if w_bit is not None:
             if args.q_backend == "fake":
                 assert (
                     args.dump_quant is None
                 ), "Need to use real quantization to dump quantized weights"
-                pseudo_quantize_model_weight(model, w_bit=args.w_bit, q_config=q_config,layer_idx=args.layer)
+                pseudo_quantize_model_weight(model, w_bit=w_bit, q_config=q_config,layer_idx=args.layer)
                 if args.dump_fake:
                     torch.save(model,"fake_quant_weight.pt")
                     print("Pseudo-quantized models saved at", args.dump_fake)
@@ -292,12 +292,12 @@ def main():
         exit()
 
     # a hack here to auto set model group
-    model, enc = build_model_and_enc(args.model_path)
-    model_fp = build_model_fp(args.model_path)
+    model_3, enc = build_model_and_enc(args.model_path,3,"awq_cache/Meta-Llama-3-8B-Instruct-w3-g128.pt")
+    model_4 = build_model_and_enc(args.model_path,4,"awq_cache/Meta-Llama-3-8B-Instruct-w4-g128.pt")
     print("RUNNING",args.model_path,"#",args.w_bit,"#",args.layer)
 
     data_dict = {}
-    file_path = 'calib_data.pt'
+    file_path = 'calib_data_v2.pt'
     if os.path.exists(file_path):
         try:
             # 파일 로드
@@ -320,28 +320,28 @@ def main():
         if args.tasks == "wikitext":
             testenc = load_dataset("mit-han-lab/pile-val-backup", split="validation")
             testenc = enc("\n\n".join(testenc["text"][:4358]), return_tensors="pt")
-            model.seqlen = 2048
-            model_fp.seqlen = 2048
+            model_3.seqlen = 2048
+            model_4.seqlen = 2048
         
-            testenc = testenc.input_ids.to(model.device)
+            testenc = testenc.input_ids.to(model_3.device)
             testenc = testenc[:, :289077]
             print(testenc.shape)
-            nsamples = testenc.numel() // model.seqlen
-            model = model.eval()
-            model_fp = model_fp.eval()    
+            nsamples = testenc.numel() // model_3.seqlen
+            model_3 = model_3.eval()
+            model_4 = model_4.eval()    
             tot_kl=0
             for i in tqdm.tqdm(range(nsamples), desc="evaluating..."):
-                batch = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)].to(
-                    model.device
+                batch = testenc[:, (i * model_3.seqlen) : ((i + 1) * model_3.seqlen)].to(
+                    model_3.device
                 )
                 with torch.no_grad():
-                    lm_logits = model(batch).logits
-                    lm_logits_fp = model_fp(batch).logits
-                    lm_logits = torch.squeeze(lm_logits)
-                    lm_logits_fp = torch.squeeze(lm_logits_fp)
-                    input_log = torch.log_softmax(lm_logits, dim=1)
-                    target = torch.softmax(lm_logits_fp, dim=1)
-                    #print(lm_logits.shape,lm_logits_fp.shape)
+                    lm_logits3 = model_3(batch).logits
+                    lm_logits_4 = model_4(batch).logits
+                    lm_logits3 = torch.squeeze(lm_logits3)
+                    lm_logits_4 = torch.squeeze(lm_logits_4)
+                    input_log = torch.log_softmax(lm_logits3, dim=1)
+                    target = torch.softmax(lm_logits_4, dim=1)
+                    #print(lm_logits3.shape,lm_logits_fp.shape)
                     kl = F.kl_div(input_log, target, reduction='batchmean')
                     tot_kl += kl.item()
                     #print(kl)
