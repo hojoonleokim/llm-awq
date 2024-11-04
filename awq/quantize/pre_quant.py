@@ -150,6 +150,7 @@ def run_awq(
 
     # solve layer by layer
     for i in tqdm.tqdm(range(len(layers)), desc="Running AWQ..."):
+        bit = 3
         layer = layers[i]
         layer = layer.cuda()
         named_linears = get_named_linears(layer)
@@ -185,7 +186,7 @@ def run_awq(
             scales_list = auto_scale_block(
                 layer,
                 layer_kwargs,
-                w_bit=w_bit,
+                w_bit=bit,
                 q_config=q_config,
                 input_feat=input_feat,
             )
@@ -202,7 +203,7 @@ def run_awq(
         if mse_range:
             clip_list = auto_clip_block(
                 layer,
-                w_bit=w_bit,
+                w_bit=bit,
                 q_config=q_config,
                 input_feat=input_feat,
             )
