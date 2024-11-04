@@ -113,7 +113,7 @@ def pseudo_quantize_model_weight(
     bit_dict =  torch.load(bit)
     layers = get_blocks(model)
     for i in tqdm(range(len(layers)), desc="pseudo weight quantization..."):
-        w_bit = bit_dict[i]
+        w_bit = 3
         print(i,w_bit)
         named_linears = get_named_linears(layers[i])
         for n, m in named_linears.items():

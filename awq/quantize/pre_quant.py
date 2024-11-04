@@ -151,7 +151,7 @@ def run_awq(
     print(bit_dict)
     # solve layer by layer
     for i in tqdm.tqdm(range(len(layers)), desc="Running AWQ..."):
-        w_bit = bit_dict[i]
+        w_bit = 3
         print(i,w_bit)
         layer = layers[i]
         layer = layer.cuda()
