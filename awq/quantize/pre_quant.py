@@ -152,7 +152,7 @@ def run_awq(
     # solve layer by layer
     for i in tqdm.tqdm(range(len(layers)), desc="Running AWQ..."):
         w_bit = bit_dict[i]
-        #print(w_bit)
+        print(w_bit)
         layer = layers[i]
         layer = layer.cuda()
         named_linears = get_named_linears(layer)
