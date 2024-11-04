@@ -85,7 +85,7 @@ def move_embed(model, device):
 def run_awq(
     model,
     enc,
-    w_bit,
+    bit,
     q_config,
     n_samples=512,
     seqlen=512,
@@ -147,9 +147,11 @@ def run_awq(
         "scale": [],
         "clip": [],
     }
-
+    bit_dict = torch.load(bit)
     # solve layer by layer
     for i in tqdm.tqdm(range(len(layers)), desc="Running AWQ..."):
+        #w_bit = bit_dict[i]
+        w_bit = 3
         layer = layers[i]
         layer = layer.cuda()
         named_linears = get_named_linears(layer)
