@@ -150,8 +150,8 @@ def run_awq(
     bit_dict = torch.load(bit)
     # solve layer by layer
     for i in tqdm.tqdm(range(len(layers)), desc="Running AWQ..."):
-        #w_bit = bit_dict[i]
-        w_bit = 3
+        w_bit = bit_dict[i]
+        #w_bit = 3
         layer = layers[i]
         layer = layer.cuda()
         named_linears = get_named_linears(layer)
