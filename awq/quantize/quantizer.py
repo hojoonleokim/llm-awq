@@ -278,17 +278,19 @@ def pseudo_quantize_model_weight(
 
 
 @torch.no_grad()
-def real_quantize_model_weight(model, w_bit, q_config, init_only=False):
+def real_quantize_model_weight(model, bit_pt, q_config, init_only=False):
     from .qmodule import WQLinear
     from .pre_quant import get_blocks, get_named_linears
 
     assert q_config["zero_point"], "We only support zero_point quantization now."
 
     layers = get_blocks(model)
+    bit_dict = torch.load(bit_pt)
     for i in tqdm(
         range(len(layers)),
         desc="real weight quantization..." + ("(init only)" if init_only else ""),
     ):
+        w_bit = bit_dict[i]
         layer = layers[i]
         named_linears = get_named_linears(layer)
         scale_activations(layer)
