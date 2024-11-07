@@ -195,9 +195,6 @@ def build_model_and_enc(model_path):
         # weight quantization
         if args.w_bit is not None:
             if args.q_backend == "fake":
-                assert (
-                    args.dump_quant is None
-                ), "Need to use real quantization to dump quantized weights"
                 pseudo_quantize_model_weight(model, bit_pt=args.w_bit, q_config=q_config)
                 if args.dump_fake:
                     torch.save(model,args.dump_fake)
