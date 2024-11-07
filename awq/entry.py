@@ -282,6 +282,7 @@ def main():
                 )
                 neg_log_likelihood = loss.float() * model.seqlen
                 nlls.append(neg_log_likelihood)
+                batch = batch.to('cpu')
 
             ppl = torch.exp(torch.stack(nlls).sum() / (nsamples * model.seqlen))
             print(ppl.item())
