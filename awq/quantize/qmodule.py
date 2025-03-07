@@ -2,8 +2,46 @@ import math
 import torch
 import torch.nn as nn
 import awq_inference_engine  # with CUDA kernels
+import numpy as np
 
+class Packer:
+    def __init__(self):
+        self.s = torch.from_numpy(np.array([1, 2, 4, 8, 16, 32, 64, 128])).view(
+            [-1, 1])
+        if torch.cuda.is_available():
+            self.s = self.s.cuda()
+        self.w_pool = {}
 
+    def __get_weight(self, shape, dtype):
+        key = np.prod(shape)
+        if key not in self.w_pool.keys():
+            self.w_pool[key] = torch.zeros(shape, dtype=dtype)
+            if torch.cuda.is_available():
+                self.w_pool[key] = self.w_pool[key].cuda()
+        return self.w_pool[key].reshape(shape)
+
+    def pack(self, b):
+        shape = b.shape
+        p_b = b
+        if torch.cuda.is_available():
+            p_b = p_b.cuda()
+        p_b = (p_b + 1) / 2  # (-1., +1.) -> (0, 1)
+        p_b = torch.reshape(p_b, [8, -1]).type(torch.uint8)
+        p_b = p_b * self.s
+        p_b = p_b.sum(0)
+        p_b = p_b.type(torch.uint8)
+        return p_b, shape
+
+    def unpack(self, pb, shape, dtype=torch.float16):
+        b = self.__get_weight(shape, dtype).view([8, -1])
+        for i in range(8):
+            b[i] = (pb & 1)  # (pB%2)
+            pb = pb >> 1  # //2
+        b = b * 2 - 1
+        b = b.reshape(shape)
+        return b
+
+PACKER = Packer()
 def make_divisible(c, divisor):
     return (c + divisor - 1) // divisor
 
@@ -21,7 +59,38 @@ def calculate_zeros_width(in_features, group_size=128, pack_num=8):
     base_width = make_divisible(in_features // group_size, pack_num)
     base_width = make_divisible(base_width, size_multiplier) * size_multiplier
     return base_width
+def convert_bcq_format(scale, zero, quant_data, qbits, do_packing=False, in_ch_wise=False):
+    global PACKER
 
+    zero   = scale * zero
+    upack  = torch.Tensor([[2**i for i in range(qbits)]]).to(torch.device('cuda:0'))
+    scale  = scale / 2.0
+    scale  = torch.matmul(scale, upack)
+
+    offset = scale.sum(-1).unsqueeze(-1) - zero
+    offset= offset.reshape(offset.shape[0],-1)
+    binary = torch.zeros(list(quant_data.shape) + [qbits],dtype =torch.int64)
+    binary_shape = binary.shape
+    
+    quant_data = quant_data.to(torch.int)
+    for i in range(qbits):
+        binary[:, :, i] = ((quant_data >> i) & 1) # O I B
+
+    N = binary.shape[0] #output
+
+    scale_ = scale.permute(1,2,0).contiguous() # G B O
+    binary_ = binary.permute(0,2,1).reshape(-1,32).contiguous().to(torch.int64).to(torch.device('cuda'))
+    offset_ = offset.permute(1,0).contiguous() # G O
+
+    matrix_132 = torch.tensor([1<<i for i in range(32)],dtype=torch.int64,device= "cuda")
+
+    bW_ = binary_*matrix_132
+
+    bW__ = torch.sum(bW_, dim=1, keepdim=True)
+    bW__ = bW__.to(torch.int32)
+    bW___ = bW__.reshape(N,qbits,-1).permute(2,1,0).contiguous()
+
+    return scale_, bW___, binary_shape, offset_
 
 def pack_intweight(unpacked_qweight, interleave, kstride):
     # unpacked_qweight: [N, K]
@@ -79,8 +148,8 @@ class WQLinear(nn.Module):
     def __init__(self, w_bit, group_size, in_features, out_features, bias, dev):
         super().__init__()
 
-        if w_bit not in [4]:
-            raise NotImplementedError("Only 4-bit are supported for now.")
+        #if w_bit not in [4]:
+        #    raise NotImplementedError("Only 4-bit are supported for now.")
 
         self.in_features = in_features
         self.out_features = out_features
@@ -90,30 +159,33 @@ class WQLinear(nn.Module):
         self.interleave = 4
         # quick sanity check (make sure aligment)
         assert self.in_features % self.group_size == 0
-        assert out_features % (32 // self.w_bit) == 0
-        pack_num = 32 // self.w_bit
-        int16_pack_num = 16 // self.w_bit
+        #assert out_features % (32 // self.w_bit) == 0
+        pack_num = 32 // 4
+        int16_pack_num = 16 // 4
 
         assert out_features % (self.interleave) == 0
         self.register_buffer(
             "qweight",
             torch.zeros(
                 (
-                    out_features // self.interleave,
-                    in_features // int16_pack_num * self.interleave,
+                    out_features,
+                    in_features // group_size,
+                    group_size
                 ),
-                dtype=torch.int16,
+                dtype=torch.int32,
                 device=dev,
             ),
         )
+
         self.register_buffer(
             "scales",
             torch.zeros(
                 (
-                    calculate_zeros_width(in_features, self.group_size) * pack_num,
                     out_features,
+                    in_features // group_size,
+                    1
                 ),
-                dtype=torch.float16,
+                dtype=torch.float32,
                 device=dev,
             ),
         )
@@ -121,14 +193,49 @@ class WQLinear(nn.Module):
             "scaled_zeros",
             torch.zeros(
                 (
-                    calculate_zeros_width(in_features, self.group_size) * pack_num,
                     out_features,
+                    in_features // group_size,
+                    1
                 ),
-                dtype=torch.float16,
+                dtype=torch.float32,
+                device=dev,
+            ),
+        )          
+        self.register_buffer(
+            "q_bias",
+            torch.zeros(
+                (
+                    in_features//128,
+                    out_features
+                ),
+                dtype=torch.float32,
                 device=dev,
             ),
         )
-
+        self.register_buffer(
+            "alpha",
+            torch.zeros(
+                (
+                    in_features//128,
+                    self.w_bit,
+                    out_features
+                ),
+                dtype=torch.float32,
+                device=dev,
+            ),
+        )
+        self.register_buffer(
+            "binary",
+            torch.zeros(
+                (
+                    in_features//32,
+                    self.w_bit,
+                    out_features
+                ),
+                dtype=torch.int32,
+                device=dev,
+            ),
+        )    
         if bias:
             self.register_buffer(
                 "bias", torch.zeros((out_features), dtype=torch.float16, device=dev)
@@ -152,21 +259,28 @@ class WQLinear(nn.Module):
             return awq_linear
 
         # need scales and zeros info for real quantization
+
         assert scales is not None and zeros is not None
+
+        awq_linear.scaled_zeros = zeros.contiguous().reshape([zeros.shape[0], zeros.shape[1], 1])
+        #print("1@ ",scales.size()," ",zeros.size())
+        
         scale_zeros = zeros * scales
 
-        pack_num = 32 // awq_linear.w_bit
+        pack_num = 32 // 4
         qscales = torch.zeros(
             (
                 scales.shape[0],
-                calculate_zeros_width(linear.in_features, group_size) * pack_num,
+                scales.shape[1],
             ),
             dtype=torch.float16,
             device=scales.device,
         )
+        #print("3@",qscales.shape)
         qscales[:, : scales.shape[1]] = scales
         # awq_linear.scales = scales.clone().half()
-        awq_linear.scales = qscales.transpose(1, 0).contiguous()
+        awq_linear.scales = qscales.contiguous().reshape([qscales.shape[0], qscales.shape[1], 1])
+        awq_linear.scales = awq_linear.scales.to(dtype=torch.float32)
         if linear.bias is not None:
             awq_linear.bias = linear.bias.clone().half()
 
@@ -180,18 +294,30 @@ class WQLinear(nn.Module):
             )
         intweight = torch.cat(intweight, dim=1)
         # intweight = intweight.t().contiguous()
-        intweight = intweight.to(dtype=torch.int32)
-        awq_linear.qweight = pack_intweight(
-            intweight.contiguous(), interleave=4, kstride=64
-        )
+        intweight = intweight.to(dtype=torch.int32).reshape([intweight.shape[0], -1])
+        awq_linear.qweight = intweight
 
         zeros = zeros.to(dtype=torch.int32)
         scaled_zeros = torch.zeros_like(qscales)
         # scaled_zeros[:, :scales.shape[1]] = -(qscales[:, :scales.shape[1]] * (zeros.to(torch.float32) - 8.0)).to(torch.float16)
         scaled_zeros[:, : scales.shape[1]] = -(
             qscales[:, : scales.shape[1]] * (zeros.to(torch.float32))
-        ).to(torch.float16)
-        awq_linear.scaled_zeros = scaled_zeros.transpose(1, 0).contiguous()
+        )
+
+        awq_linear.scaled_zeros=awq_linear.scaled_zeros.to(dtype=torch.float32)
+        zeros = zeros.reshape([zeros.shape[0],-1,1]).to(dtype=torch.float32)
+        scales = scales.reshape([zeros.shape[0],-1,1]).to(dtype=torch.float32)
+        #print(awq_linear.qweight)
+
+        #print("2@ ",data.shape,zeros.shape,scales.shape )
+
+        alpha, binary, binary_shape, offset = convert_bcq_format(
+            scales, zeros, intweight, qbits=w_bit,
+            do_packing=True, in_ch_wise=False)
+
+        awq_linear.binary = binary
+        awq_linear.alpha = alpha
+        awq_linear.q_bias = offset
 
         return awq_linear
 

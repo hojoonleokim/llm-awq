@@ -19,10 +19,10 @@ CUDA_VISIBLE_DEVICES=3 python -m awq.entry --model_path $MODEL \
     --q_backend fake --dump_scaled scaled_fp16_cache/$MODEL-w4-g128-scaled
 
 # # generate real quantized weights (w3)
-# python -m awq.entry --model_path ../models/$MODEL \
-#     --w_bit 4 --q_group_size 128 \
-#     --load_awq awq_cache/$MODEL-w4-g128.pt \
-#     --q_backend real --dump_quant quant_cache/$MODEL-w4-g128-awq.pt
+CUDA_VISIBLE_DEVICES=3 python -m awq.entry --model_path $MODEL \
+    --w_bit 4 --q_group_size 128 \
+    --load_awq awq_cache/$MODEL-w4-g128.pt \
+    --q_backend real --dump_quant quant_cache/$MODEL-w4-g128-lutgemm.pt
 
 # load and evaluate the real quantized model (smaller gpu memory usage)
 #python -m awq.entry --model_path ../models/$MODEL \
