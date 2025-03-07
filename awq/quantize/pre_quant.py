@@ -40,7 +40,10 @@ def get_blocks(model):
     elif "neox" in str(model.__class__).lower():
         layers = model.gpt_neox.layers
     elif "phi" in str(model.__class__).lower():
-        layers = model.model.layers     
+        layers = model.model.layers
+    elif "qwen2" in str(model.__class__).lower():
+        print("qwen11!")
+        layers = model.model.layers
     else:
         raise NotImplementedError(type(model))
     return layers
@@ -76,6 +79,9 @@ def move_embed(model, device):
         model.gpt_neox.emb_dropout = model.gpt_neox.emb_dropout.to(device)
         model.embed_out = model.embed_out.to(device)
     elif "phi" in str(model.__class__).lower():
+        model.model.embed_tokens = model.model.embed_tokens.to(device)
+    elif "qwen2" in str(model.__class__).lower():
+        print("qwen22!")
         model.model.embed_tokens = model.model.embed_tokens.to(device)
     else:
         raise NotImplementedError(type(model))
@@ -221,6 +227,12 @@ def run_awq(
     return awq_results
 
 
-def apply_awq(model, awq_results):
+def apply_awq(model, awq_results,args):
     apply_scale(model, awq_results["scale"])
-    apply_clip(model, awq_results["clip"])
+    if args.dump_scaled:
+        model.save_pretrained(args.dump_scaled)
+        print("Scaled models saved at", args.dump_scaled)
+        exit(0)
+    else:
+        print("Applying clip")
+        apply_clip(model, awq_results["clip"])

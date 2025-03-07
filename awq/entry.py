@@ -54,6 +54,7 @@ parser.add_argument("--q_backend", type=str, default="fake", choices=["fake", "r
 # save/load real quantized weights
 parser.add_argument("--dump_quant", type=str, default=None, help="save quantized model")
 parser.add_argument("--dump_fake", type=str, default=None, help="save fake-quantized model")
+parser.add_argument("--dump_scaled", type=str, default=None, help="save scaled model")
 parser.add_argument("--load_quant", type=str, default=None, help="load quantized model")
 # apply/save/load awq
 parser.add_argument("--run_awq", action="store_true", help="perform awq search process")
@@ -186,7 +187,7 @@ def build_model_and_enc(model_path):
         if args.load_awq:
             print("Loading pre-computed AWQ results from", args.load_awq)
             awq_results = torch.load(args.load_awq, map_location="cpu")
-            apply_awq(model, awq_results)
+            apply_awq(model, awq_results,args)
 
         # weight quantization
         if args.w_bit is not None:
@@ -196,7 +197,7 @@ def build_model_and_enc(model_path):
                 ), "Need to use real quantization to dump quantized weights"
                 pseudo_quantize_model_weight(model, w_bit=args.w_bit, q_config=q_config)
                 if args.dump_fake:
-                    torch.save(model,"fake_quant_weight.pt")
+                    model.save_pretrained(args.dump_fake)
                     print("Pseudo-quantized models saved at", args.dump_fake)
             elif args.q_backend == "real":  # real quantization
                 real_quantize_model_weight(model, w_bit=args.w_bit, q_config=q_config)

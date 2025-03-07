@@ -171,3 +171,7 @@ cython_debug/
 **/*.pyc
 *.json
 __pycache__
+fakequant_cache/
+quant_cache/
+scaled_fp16_cache/
+awq_cache/
