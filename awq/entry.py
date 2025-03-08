@@ -1,6 +1,7 @@
 from lm_eval import evaluator, tasks
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 import torch
+import torch.nn.functional as F
 import argparse
 import os
 import json
@@ -47,6 +48,7 @@ parser.add_argument(
     help="automatically set parallel and batch_size",
 )
 # quantization config
+parser.add_argument("--layer", type=int, default=None)
 parser.add_argument("--w_bit", type=int, default=None)
 parser.add_argument("--q_group_size", type=int, default=-1)
 parser.add_argument("--no_zero_point", action="store_true", help="disable zero_point")
@@ -86,6 +88,49 @@ q_config = {
 print("Quantization config:", q_config)
 
 # build model and tokenizer
+
+def build_model_fp(model_path):
+
+    print(f"* Building fp model {model_path}")
+
+
+    config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+    # Note (Haotian): To avoid OOM after huggingface transformers 4.36.2
+    config.use_cache = False
+
+
+
+    # Init model on CPU:
+    kwargs = {"torch_dtype": torch.float16, "low_cpu_mem_usage": True}
+
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path, config=config, trust_remote_code=True, **kwargs
+    )
+
+    model.eval()
+
+    # Move the model to GPU (as much as possible) for LM evaluation
+    kwargs = {
+        "max_memory": get_balanced_memory(
+            model, max_memory if len(max_memory) > 0 else None
+        )
+    }
+    device_map = infer_auto_device_map(
+        model,
+        # TODO: can we remove this?
+        no_split_module_classes=[
+            "OPTDecoderLayer",
+            "LlamaDecoderLayer",
+            "BloomBlock",
+            "MPTBlock",
+            "DecoderLayer",
+        ],
+        **kwargs,
+    )
+    # 직접 CUDA 1번 디바이스에 할당
+    model = model.to('cuda:1')
+
+    return model
 
 
 def build_model_and_enc(model_path):
@@ -174,6 +219,7 @@ def build_model_and_enc(model_path):
                 q_config=q_config,
                 n_samples=128,
                 seqlen=512,
+                layer_idx=args.layer,
             )
             if args.dump_awq:
                 dirpath = os.path.dirname(args.dump_awq)
@@ -187,7 +233,7 @@ def build_model_and_enc(model_path):
         if args.load_awq:
             print("Loading pre-computed AWQ results from", args.load_awq)
             awq_results = torch.load(args.load_awq, map_location="cpu")
-            apply_awq(model, awq_results,args)
+            apply_awq(model, awq_results,args,args.layer)
 
         # weight quantization
         if args.w_bit is not None:
@@ -195,7 +241,7 @@ def build_model_and_enc(model_path):
                 assert (
                     args.dump_quant is None
                 ), "Need to use real quantization to dump quantized weights"
-                pseudo_quantize_model_weight(model, w_bit=args.w_bit, q_config=q_config)
+                pseudo_quantize_model_weight(model, w_bit=args.w_bit, q_config=q_config,layer_idx=args.layer)
                 if args.dump_fake:
                     model.save_pretrained(args.dump_fake)
                     print("Pseudo-quantized models saved at", args.dump_fake)
@@ -235,7 +281,8 @@ def build_model_and_enc(model_path):
             ],
             **kwargs,
         )
-        model = dispatch_model(model, device_map=device_map)
+        # quantized model을 CUDA 0번에 할당
+        model = model.to('cuda:0')
 
     return model, enc
 
@@ -252,63 +299,83 @@ def main():
 
     # a hack here to auto set model group
     model, enc = build_model_and_enc(args.model_path)
+    model_fp = build_model_fp(args.model_path)
+    print("RUNNING",args.model_path,"#",args.w_bit,"#",args.layer)
+
+    data_dict = {}
+    if(args.w_bit == 3):file_path = 'calib_data_3bit.pt'
+    elif(args.w_bit == 4):file_path = 'calib_data_4bit.pt'
+    if os.path.exists(file_path):
+        try:
+            # 파일 로드
+            loaded_data = torch.load(file_path)
+            
+            # 로드한 데이터가 딕셔너리인지 확인
+            if isinstance(loaded_data, dict):
+                data_dict = loaded_data
+                print(f"LOADED: {data_dict}")
+            else:
+                print("LOADED DATA NOT DICT CREATING NEW.")
+        except Exception as e:
+            print(f"ERR: {e}")
+            print("CREATING NEW.")
+    else:
+        print("NO .pt FILE. CREATING NEW.")
 
     if args.tasks is not None:
         # https://github.com/IST-DASLab/gptq/blob/2d65066eeb06a5c9ff5184d8cebdf33662c67faf/llama.py#L206
         if args.tasks == "wikitext":
-            testenc = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
-            testenc = enc("\n\n".join(testenc["text"]), return_tensors="pt")
+            testenc = load_dataset("mit-han-lab/pile-val-backup", split="validation")
+            testenc = enc("\n\n".join(testenc["text"][:4358]), return_tensors="pt")
             model.seqlen = 2048
+            model_fp.seqlen = 2048
+        
             testenc = testenc.input_ids.to(model.device)
+            testenc = testenc[:, :289077]
+            print(testenc.shape)
             nsamples = testenc.numel() // model.seqlen
+            print(nsamples)
             model = model.eval()
-            nlls = []
+            model_fp = model_fp.eval()    
+            tot_kl=0
             for i in tqdm.tqdm(range(nsamples), desc="evaluating..."):
-                batch = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)].to(
-                    model.device
-                )
+                # 배치 데이터 준비
+                batch = testenc[:, (i * model.seqlen) : ((i + 1) * model.seqlen)].clone()
+                
                 with torch.no_grad():
-                    lm_logits = model(batch).logits
-                shift_logits = lm_logits[:, :-1, :].contiguous().float()
-                shift_labels = testenc[
-                    :, (i * model.seqlen) : ((i + 1) * model.seqlen)
-                ][:, 1:]
-                loss_fct = nn.CrossEntropyLoss()
-                loss = loss_fct(
-                    shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1)
-                )
-                neg_log_likelihood = loss.float() * model.seqlen
-                nlls.append(neg_log_likelihood)
+                    # Quantized model (cuda:0)
+                    batch_q = batch.to('cuda:0')
+                    lm_logits = model(batch_q).logits
+                    lm_logits = torch.squeeze(lm_logits)
+                    input_log = torch.log_softmax(lm_logits, dim=1)
 
-            ppl = torch.exp(torch.stack(nlls).sum() / (nsamples * model.seqlen))
-            print(ppl.item())
+                    # FP model (cuda:1)
+                    batch_fp = batch.to('cuda:1')
+                    lm_logits_fp = model_fp(batch_fp).logits
+                    lm_logits_fp = torch.squeeze(lm_logits_fp)
+                    target = torch.softmax(lm_logits_fp, dim=1)
+                    # print(lm_logits_fp,lm_logits)
+                    # KL divergence 계산 (CPU에서)
+                    torch.cuda.synchronize('cuda:0')  # cuda:0 GPU 연산 완료 대기
+                    torch.cuda.synchronize('cuda:1')  # cuda:1 GPU 연산 완료 대기
+                    #input_log = input_log.to('cpu')
+                    target = target.to('cuda:0')
+                    torch.cuda.synchronize('cuda:0')  # cuda:0에서 CPU로 데이터 이동 완료 대기
+                    torch.cuda.synchronize('cuda:1')  # cuda:1에서 CPU로 데이터 이동 완료 대기
+                    
+                    kl = F.kl_div(input_log, target, reduction='batchmean')
+                    tot_kl += kl.item()
+                    print(tot_kl)
+                    
+                    # 메모리 정리
+                    del batch_q, batch_fp, lm_logits, lm_logits_fp, input_log, target
+                    torch.cuda.empty_cache()
 
-            results = {"ppl": ppl.item()}
-            if args.output_path is not None:
-                os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
-                with open(args.output_path, "w") as f:
-                    json.dump(results, f, indent=2)
-        else:
-            task_names = args.tasks.split(",")
-
-            lm_eval_model = LMEvalAdaptor(args.model_path, model, enc, args.batch_size)
-            results = evaluator.simple_evaluate(
-                model=lm_eval_model,
-                tasks=task_names,
-                batch_size=args.batch_size,
-                no_cache=True,
-                num_fewshot=args.num_fewshot,
-            )
-
-            print(evaluator.make_table(results))
-
-        if args.output_path is not None:
-            os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
-            # otherwise cannot save
-            results["config"]["model"] = args.model_path
-            with open(args.output_path, "w") as f:
-                json.dump(results, f, indent=2)
-
-
+            if(args.layer not in data_dict):
+                data_dict[args.layer]=tot_kl
+            else:
+                data_dict[args.layer]-=tot_kl
+            print(data_dict)
+            torch.save(data_dict, file_path)
 if __name__ == "__main__":
     main()

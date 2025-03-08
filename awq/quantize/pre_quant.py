@@ -227,12 +227,12 @@ def run_awq(
     return awq_results
 
 
-def apply_awq(model, awq_results,args):
-    apply_scale(model, awq_results["scale"])
+def apply_awq(model, awq_results,args,layer_idx):
+    apply_scale(model, awq_results["scale"],layer_idx)
     if args.dump_scaled:
         model.save_pretrained(args.dump_scaled)
         print("Scaled models saved at", args.dump_scaled)
         exit(0)
     else:
         print("Applying clip")
-        apply_clip(model, awq_results["clip"])
+        apply_clip(model, awq_results["clip"],layer_idx)
